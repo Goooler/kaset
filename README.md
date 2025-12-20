@@ -30,8 +30,8 @@ Download the latest release from the [Releases](https://github.com/sozercan/kase
 ### Homebrew
 
 ```bash
-brew tap sozercan/kaset
-brew install --cask --no-quarantine kaset
+brew tap sozercan/kaset https://github.com/sozercan/kaset
+brew install --cask kaset --no-quarantine
 ```
 
 > **Note:** The `--no-quarantine` flag is required because the app is not signed.
