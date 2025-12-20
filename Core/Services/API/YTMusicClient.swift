@@ -1018,16 +1018,45 @@ final class YTMusicClient {
 
     private func extractThumbnails(from data: [String: Any]) -> [String] {
         if let thumbnail = data["thumbnail"] as? [String: Any] {
+            // Try musicThumbnailRenderer (most common)
             if let musicThumbnailRenderer = thumbnail["musicThumbnailRenderer"] as? [String: Any],
                let thumbData = musicThumbnailRenderer["thumbnail"] as? [String: Any],
                let thumbnails = thumbData["thumbnails"] as? [[String: Any]]
             {
                 return thumbnails.compactMap { $0["url"] as? String }.map(normalizeURL)
             }
+
+            // Try croppedSquareThumbnailRenderer (used in library playlists)
+            if let croppedRenderer = thumbnail["croppedSquareThumbnailRenderer"] as? [String: Any],
+               let thumbnails = croppedRenderer["thumbnail"] as? [String: Any],
+               let thumbList = thumbnails["thumbnails"] as? [[String: Any]]
+            {
+                return thumbList.compactMap { $0["url"] as? String }.map(normalizeURL)
+            }
+
+            // Direct thumbnails array
             if let thumbnails = thumbnail["thumbnails"] as? [[String: Any]] {
                 return thumbnails.compactMap { $0["url"] as? String }.map(normalizeURL)
             }
         }
+
+        // Try thumbnailRenderer at top level (some playlist formats)
+        if let thumbnailRenderer = data["thumbnailRenderer"] as? [String: Any] {
+            if let musicThumbnailRenderer = thumbnailRenderer["musicThumbnailRenderer"] as? [String: Any],
+               let thumbData = musicThumbnailRenderer["thumbnail"] as? [String: Any],
+               let thumbnails = thumbData["thumbnails"] as? [[String: Any]]
+            {
+                return thumbnails.compactMap { $0["url"] as? String }.map(normalizeURL)
+            }
+
+            if let croppedRenderer = thumbnailRenderer["croppedSquareThumbnailRenderer"] as? [String: Any],
+               let thumbnails = croppedRenderer["thumbnail"] as? [String: Any],
+               let thumbList = thumbnails["thumbnails"] as? [[String: Any]]
+            {
+                return thumbList.compactMap { $0["url"] as? String }.map(normalizeURL)
+            }
+        }
+
         return []
     }
 
