@@ -14,7 +14,6 @@ struct MainWindow: View {
 
     @State private var showLoginSheet = false
     @State private var ytMusicClient: YTMusicClient?
-    @State private var nowPlayingManager: NowPlayingManager?
 
     /// Access to the app delegate for persistent WebView.
     private var appDelegate: AppDelegate? {
@@ -89,7 +88,7 @@ struct MainWindow: View {
         }
         .task {
             setupClient()
-            setupNowPlaying()
+            NowPlayingManager.shared.configure(playerService: playerService)
         }
     }
 
@@ -154,10 +153,6 @@ struct MainWindow: View {
             authService: authService,
             webKitManager: webKitManager
         )
-    }
-
-    private func setupNowPlaying() {
-        nowPlayingManager = NowPlayingManager(playerService: playerService)
     }
 
     private func handleAuthStateChange(_ state: AuthService.State) {

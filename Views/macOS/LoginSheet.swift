@@ -35,16 +35,22 @@ struct LoginSheet: View {
     }
 
     private var headerView: some View {
-        HStack {
-            Text("Sign in to YouTube Music")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Sign in to YouTube Music")
+                    .font(.headline)
 
-            Spacer()
+                Spacer()
 
-            if isCheckingLogin {
-                ProgressView()
-                    .scaleEffect(0.8)
+                if isCheckingLogin {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
             }
+
+            Text("Note: If passkeys don't work, use \"Try another way\" to sign in with password.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding()
     }

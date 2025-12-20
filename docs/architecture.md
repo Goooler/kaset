@@ -13,7 +13,7 @@ Core/               → Shared logic (platform-independent)
   ├── Services/     → Business logic
   │   ├── API/      → YTMusicClient, Parsers/
   │   ├── Auth/     → AuthService (login state machine)
-  │   ├── Player/   → PlayerService, NowPlayingManager
+  │   ├── Player/   → PlayerService, NowPlayingManager (media keys)
   │   └── WebKit/   → WebKitManager (cookie persistence)
   ├── ViewModels/   → State management (HomeViewModel, etc.)
   └── Utilities/    → Helpers (DiagnosticsLogger, extensions)
@@ -173,11 +173,13 @@ final class SingletonPlayerWebView {
 
 **File**: `Core/Services/Player/NowPlayingManager.swift`
 
-System media integration:
+Remote command center integration for media key support:
 
-- Updates `MPNowPlayingInfoCenter` with track info
 - Registers `MPRemoteCommandCenter` handlers
-- Handles media keys (play/pause, next, previous)
+- Handles media keys (play/pause, next, previous, seek)
+- Routes commands to `PlayerService` → `SingletonPlayerWebView`
+
+**Note**: Now Playing display (track info, album art) is handled natively by WKWebView's Media Session API. This provides better integration with album artwork from YouTube Music.
 
 ### AppDelegate
 
@@ -276,9 +278,10 @@ User clicks Play
     │
     ▼
 ┌─────────────────────────────────────────────────┐
-│ NowPlayingManager observes PlayerService        │
-│  → Updates MPNowPlayingInfoCenter               │
-│  → Registers media key handlers                 │
+│ WKWebView Media Session (native)                │
+│  → Updates macOS Now Playing (with album art)   │
+│ NowPlayingManager                               │
+│  → Registers media key handlers → PlayerService │
 └─────────────────────────────────────────────────┘
 ```
 

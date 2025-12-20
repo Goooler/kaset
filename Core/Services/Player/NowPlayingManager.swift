@@ -4,27 +4,46 @@ import MediaPlayer
 import Observation
 import os
 
-/// Manages Now Playing info and remote command center integration.
+/// Manages remote command center integration for media key support.
+/// Note: Now Playing info display is handled natively by WKWebView's media session.
+/// This class only sets up remote command handlers to route media keys to our PlayerService.
 @MainActor
 @Observable
 final class NowPlayingManager {
-    private let playerService: PlayerService
-    private let logger = DiagnosticsLogger.player
-    private var observationTask: Task<Void, Never>?
+    /// Shared singleton instance. Must be configured with `configure(playerService:)` before use.
+    static let shared = NowPlayingManager()
 
-    init(playerService: PlayerService) {
+    private var playerService: PlayerService?
+    private let logger = DiagnosticsLogger.player
+    private var isConfigured = false
+
+    private init() {}
+
+    /// Configures the singleton with a player service. Only configures once; subsequent calls are ignored.
+    func configure(playerService: PlayerService) {
+        guard !isConfigured else {
+            logger.debug("NowPlayingManager already configured, skipping")
+            return
+        }
+        isConfigured = true
         self.playerService = playerService
         setupRemoteCommands()
-        startObserving()
+        logger.info("NowPlayingManager configured (remote commands only)")
     }
 
     // MARK: - Remote Commands
 
     private func setupRemoteCommands() {
+        guard let player = playerService else { return }
         let commandCenter = MPRemoteCommandCenter.shared()
 
-        // Capture playerService directly to avoid capturing self
-        let player = playerService
+        // Remove any existing targets to prevent duplicates
+        commandCenter.playCommand.removeTarget(nil)
+        commandCenter.pauseCommand.removeTarget(nil)
+        commandCenter.togglePlayPauseCommand.removeTarget(nil)
+        commandCenter.nextTrackCommand.removeTarget(nil)
+        commandCenter.previousTrackCommand.removeTarget(nil)
+        commandCenter.changePlaybackPositionCommand.removeTarget(nil)
 
         // Play command
         commandCenter.playCommand.isEnabled = true
@@ -85,41 +104,5 @@ final class NowPlayingManager {
         }
 
         logger.info("Remote commands configured")
-    }
-
-    // MARK: - Now Playing Info
-
-    private func startObserving() {
-        observationTask = Task { @MainActor [weak self] in
-            while !Task.isCancelled {
-                self?.updateNowPlayingInfo()
-                try? await Task.sleep(for: .seconds(1))
-            }
-        }
-    }
-
-    private func updateNowPlayingInfo() {
-        guard let track = playerService.currentTrack else {
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-            return
-        }
-
-        var nowPlayingInfo: [String: Any] = [
-            MPMediaItemPropertyTitle: track.title,
-            MPMediaItemPropertyArtist: track.artistsDisplay,
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: playerService.progress,
-            MPMediaItemPropertyPlaybackDuration: playerService.duration,
-            MPNowPlayingInfoPropertyPlaybackRate: playerService.isPlaying ? 1.0 : 0.0,
-            MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
-        ]
-
-        if let album = track.album {
-            nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = album.title
-        }
-
-        // Note: Artwork disabled due to thread-safety issues with MPMediaItemArtwork closure
-        // The closure is called on a background thread and NSImage is not thread-safe
-
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
 }

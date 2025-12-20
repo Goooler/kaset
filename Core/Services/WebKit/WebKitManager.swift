@@ -48,6 +48,10 @@ final class WebKitManager: NSObject {
         configuration.websiteDataStore = dataStore
         configuration.preferences.isElementFullscreenEnabled = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
+
+        // Disable AirPlay (not needed for this app)
+        configuration.allowsAirPlayForMediaPlayback = false
+
         return configuration
     }
 

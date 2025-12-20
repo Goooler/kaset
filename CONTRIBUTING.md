@@ -38,7 +38,7 @@ Core/
   ├── Services/
   │   ├── API/      → YTMusicClient (YouTube Music API calls)
   │   ├── Auth/     → AuthService (login state machine)
-  │   ├── Player/   → PlayerService, NowPlayingManager (playback control)
+  │   ├── Player/   → PlayerService, NowPlayingManager (playback, media keys)
   │   └── WebKit/   → WebKitManager (cookie store, persistent login)
   ├── ViewModels/   → HomeViewModel, LibraryViewModel, SearchViewModel
   └── Utilities/    → DiagnosticsLogger, extensions
