@@ -2,7 +2,7 @@
 
 A native macOS YouTube Music client built with Swift and SwiftUI.
 
-<img src="docs/screenshot.png" alt="Kaset Screenshot" width="800">
+<img src="docs/screenshot.png" alt="Kaset Screenshot">
 
 ## Features
 

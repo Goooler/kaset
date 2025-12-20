@@ -332,20 +332,6 @@ struct PlayerBar: View {
             .accessibilityLabel("Like")
             .accessibilityValue(playerService.currentTrackLikeStatus == .like ? "Liked" : "Not liked")
             .disabled(playerService.currentTrack == nil)
-
-            // Add to Library button
-            Button {
-                playerService.toggleLibraryStatus()
-            } label: {
-                Image(systemName: playerService.currentTrackInLibrary
-                    ? "plus.circle.fill"
-                    : "plus.circle")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(playerService.currentTrackInLibrary ? .red : .primary.opacity(0.6))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(playerService.currentTrackInLibrary ? "Remove from Library" : "Add to Library")
-            .disabled(playerService.currentTrack == nil)
         }
     }
 
