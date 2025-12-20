@@ -100,6 +100,42 @@ jobs:
           path: ${{ steps.artifact.outputs.filename }}
           retention-days: 30
 
+      - name: Calculate SHA256
+        id: sha256
+        run: |
+          SHA256=$(shasum -a 256 "${{ steps.artifact.outputs.filename }}" | awk '{print $1}')
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Update Cask
+        run: |
+          TAG="${{ steps.artifact.outputs.tag }}"
+          VERSION="${TAG#v}"  # Remove 'v' prefix if present
+          
+          cat > Casks/kaset.rb << EOF
+          cask "kaset" do
+            version "$VERSION"
+            sha256 "${{ steps.sha256.outputs.sha256 }}"
+
+            url "https://github.com/${{ github.repository }}/releases/download/${TAG}/${{ steps.artifact.outputs.filename }}"
+            name "Kaset"
+            desc "Native macOS YouTube Music client"
+            homepage "https://github.com/${{ github.repository }}"
+
+            auto_updates true
+            depends_on macos: ">= :tahoe"
+
+            app "Kaset.app"
+
+            zap trash: [
+              "~/Library/Application Support/Kaset",
+              "~/Library/Caches/com.sertacozercan.Kaset",
+              "~/Library/Preferences/com.sertacozercan.Kaset.plist",
+              "~/Library/Saved Application State/com.sertacozercan.Kaset.savedState",
+              "~/Library/WebKit/com.sertacozercan.Kaset",
+            ]
+          end
+          EOF
+
       - name: Create GitHub release and upload DMG
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -119,3 +155,11 @@ jobs:
               --title "$TITLE" \
               --notes "$NOTES"
           fi
+
+      - name: Commit Cask Update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/kaset.rb
+          git diff --cached --quiet || git commit -m "Update cask to ${{ steps.artifact.outputs.tag }}"
+          git push
