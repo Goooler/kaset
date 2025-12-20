@@ -8,6 +8,7 @@ import os
 final class AuthService {
     /// Authentication states.
     enum State: Equatable, Sendable {
+        case initializing
         case loggedOut
         case loggingIn
         case loggedIn(sapisid: String)
@@ -16,10 +17,14 @@ final class AuthService {
             if case .loggedIn = self { return true }
             return false
         }
+
+        var isInitializing: Bool {
+            self == .initializing
+        }
     }
 
     /// Current authentication state.
-    private(set) var state: State = .loggedOut
+    private(set) var state: State = .initializing
 
     /// Flag indicating whether re-authentication is needed.
     var needsReauth: Bool = false

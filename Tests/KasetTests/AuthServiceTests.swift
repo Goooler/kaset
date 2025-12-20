@@ -15,8 +15,17 @@ final class AuthServiceTests: XCTestCase {
     }
 
     func testInitialState() {
-        XCTAssertEqual(authService.state, .loggedOut)
+        XCTAssertEqual(authService.state, .initializing)
         XCTAssertFalse(authService.needsReauth)
+    }
+
+    func testIsInitializing() {
+        XCTAssertTrue(authService.state.isInitializing)
+        XCTAssertFalse(authService.state.isLoggedIn)
+
+        authService.completeLogin(sapisid: "test")
+        XCTAssertFalse(authService.state.isInitializing)
+        XCTAssertTrue(authService.state.isLoggedIn)
     }
 
     func testStartLogin() {

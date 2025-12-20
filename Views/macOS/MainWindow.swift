@@ -26,7 +26,10 @@ struct MainWindow: View {
 
         ZStack(alignment: .bottomTrailing) {
             Group {
-                if authService.state.isLoggedIn {
+                if authService.state.isInitializing {
+                    // Show loading while checking login status to avoid onboarding flash
+                    initializingView
+                } else if authService.state.isLoggedIn {
                     mainContent
                 } else {
                     OnboardingView()
@@ -133,6 +136,17 @@ struct MainWindow: View {
         .frame(minWidth: 900, minHeight: 600)
     }
 
+    /// View shown while checking initial login status.
+    private var initializingView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "music.note.house.fill")
+                .font(.system(size: 60))
+                .foregroundStyle(.tint)
+            ProgressView()
+        }
+        .frame(minWidth: 900, minHeight: 600)
+    }
+
     // MARK: - Setup
 
     private func setupClient() {
@@ -148,6 +162,9 @@ struct MainWindow: View {
 
     private func handleAuthStateChange(_ state: AuthService.State) {
         switch state {
+        case .initializing:
+            // Still checking login status, do nothing
+            break
         case .loggedOut:
             // Onboarding view handles login, no need to auto-show sheet
             break
