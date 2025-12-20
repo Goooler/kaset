@@ -197,60 +197,6 @@ struct MiniPlayerWebView: NSViewRepresentable {
     }
 }
 
-// MARK: - CompactPlayToast
-
-/// A compact, unobtrusive toast that appears to let the user start playback.
-/// YouTube Music requires a user gesture, so we show this minimal popup.
-/// Only shown on first playback; subsequent plays auto-start.
-struct CompactPlayToast: View {
-    @Environment(WebKitManager.self) private var webKitManager
-    @Environment(PlayerService.self) private var playerService
-
-    let videoId: String
-
-    @State private var playbackStarted = false
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            // Show the WebView for user to click play
-            MiniPlayerWebView(
-                videoId: videoId,
-                onStateChange: { state in
-                    if case .playing = state {
-                        if !playbackStarted {
-                            playbackStarted = true
-                            // Transfer WebView to AppDelegate and dismiss
-                            Task { @MainActor in
-                                try? await Task.sleep(for: .milliseconds(500))
-                                playerService.confirmPlaybackStarted()
-                            }
-                        }
-                    }
-                }
-            )
-            .frame(width: 120, height: 68)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-
-            // Small dismiss button
-            Button {
-                playerService.confirmPlaybackStarted()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.7))
-                    .shadow(radius: 1)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close")
-            .padding(3)
-        }
-        .frame(width: 120, height: 68)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .opacity(0.95)
-        .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
-    }
-}
-
 // MARK: - SingletonPlayerWebView
 
 /// Manages a single WebView instance for the entire app lifetime.
@@ -470,101 +416,6 @@ final class SingletonPlayerWebView {
         webView.evaluateJavaScript(script, completionHandler: nil)
     }
 
-    // MARK: - Like/Dislike/Library Controls
-
-    /// Click the like (thumbs up) button in the player bar.
-    func clickLikeButton() {
-        guard let webView else { return }
-        logger.debug("clickLikeButton() called")
-
-        let script = """
-            (function() {
-                // Try the like button in the player bar
-                const likeBtn = document.querySelector('ytmusic-like-button-renderer #button-shape-like button, ytmusic-like-button-renderer .like');
-                if (likeBtn) { likeBtn.click(); return 'clicked-like'; }
-
-                // Try alternative selector
-                const altLikeBtn = document.querySelector('.ytmusic-player-bar ytmusic-like-button-renderer button[aria-label*="like" i]');
-                if (altLikeBtn) { altLikeBtn.click(); return 'clicked-alt-like'; }
-
-                return 'no-like-button';
-            })();
-        """
-        webView.evaluateJavaScript(script) { [weak self] result, error in
-            if let error {
-                self?.logger.error("clickLikeButton error: \(error.localizedDescription)")
-            } else {
-                self?.logger.debug("clickLikeButton result: \(String(describing: result))")
-            }
-        }
-    }
-
-    /// Click the dislike (thumbs down) button in the player bar.
-    func clickDislikeButton() {
-        guard let webView else { return }
-        logger.debug("clickDislikeButton() called")
-
-        let script = """
-            (function() {
-                // Try the dislike button in the player bar
-                const dislikeBtn = document.querySelector('ytmusic-like-button-renderer #button-shape-dislike button, ytmusic-like-button-renderer .dislike');
-                if (dislikeBtn) { dislikeBtn.click(); return 'clicked-dislike'; }
-
-                // Try alternative selector
-                const altDislikeBtn = document.querySelector('.ytmusic-player-bar ytmusic-like-button-renderer button[aria-label*="dislike" i]');
-                if (altDislikeBtn) { altDislikeBtn.click(); return 'clicked-alt-dislike'; }
-
-                return 'no-dislike-button';
-            })();
-        """
-        webView.evaluateJavaScript(script) { [weak self] result, error in
-            if let error {
-                self?.logger.error("clickDislikeButton error: \(error.localizedDescription)")
-            } else {
-                self?.logger.debug("clickDislikeButton result: \(String(describing: result))")
-            }
-        }
-    }
-
-    /// Click the add to library button.
-    func clickAddToLibraryButton() {
-        guard let webView else { return }
-        logger.debug("clickAddToLibraryButton() called")
-
-        let script = """
-            (function() {
-                // Try the save/library button in the player bar (usually in the menu)
-                // First, try the three-dot menu button to open it
-                const menuBtn = document.querySelector('ytmusic-player-bar .menu button, ytmusic-player-bar tp-yt-paper-icon-button.dropdown-trigger');
-                if (menuBtn) {
-                    menuBtn.click();
-                    // Wait a moment for menu to open, then click add to library
-                    setTimeout(function() {
-                        const addToLibrary = document.querySelector('ytmusic-menu-popup-renderer [aria-label*="library" i], ytmusic-menu-popup-renderer tp-yt-paper-item:has(yt-icon[icon*="library"])');
-                        if (addToLibrary) {
-                            addToLibrary.click();
-                            return 'clicked-add-to-library';
-                        }
-                    }, 200);
-                    return 'opened-menu';
-                }
-
-                // Try direct add to library button if it exists
-                const directBtn = document.querySelector('.ytmusic-player-bar [aria-label*="Add to library" i], .ytmusic-player-bar [aria-label*="Save to library" i]');
-                if (directBtn) { directBtn.click(); return 'clicked-direct'; }
-
-                return 'no-library-button';
-            })();
-        """
-        webView.evaluateJavaScript(script) { [weak self] result, error in
-            if let error {
-                self?.logger.error("clickAddToLibraryButton error: \(error.localizedDescription)")
-            } else {
-                self?.logger.debug("clickAddToLibraryButton result: \(String(describing: result))")
-            }
-        }
-    }
-
     // Observer script for playback state
     private static var observerScript: String {
         """
@@ -573,27 +424,88 @@ final class SingletonPlayerWebView {
             const bridge = window.webkit.messageHandlers.singletonPlayer;
             let lastTitle = '';
             let lastArtist = '';
+            let isPollingActive = false;
+            let pollIntervalId = null;
+            let lastUpdateTime = 0;
+            const UPDATE_THROTTLE_MS = 250; // Throttle updates to max 4/sec
 
             function waitForPlayerBar() {
                 const playerBar = document.querySelector('ytmusic-player-bar');
                 if (playerBar) {
                     setupObserver(playerBar);
+                    setupVideoListeners();
                     return;
                 }
                 setTimeout(waitForPlayerBar, 500);
             }
 
+            function setupVideoListeners() {
+                // Watch for video element to attach play/pause listeners
+                function attachVideoListeners() {
+                    const video = document.querySelector('video');
+                    if (!video) {
+                        setTimeout(attachVideoListeners, 500);
+                        return;
+                    }
+
+                    video.addEventListener('play', startPolling);
+                    video.addEventListener('playing', startPolling);
+                    video.addEventListener('pause', stopPolling);
+                    video.addEventListener('ended', stopPolling);
+                    video.addEventListener('waiting', () => sendUpdate()); // Buffer state
+                    video.addEventListener('seeked', () => sendUpdate()); // Seek completed
+
+                    // Start polling if already playing
+                    if (!video.paused) {
+                        startPolling();
+                    }
+                }
+                attachVideoListeners();
+            }
+
+            function startPolling() {
+                if (isPollingActive) return;
+                isPollingActive = true;
+                sendUpdate(); // Immediate update
+                // Poll at ~4Hz during playback for smooth progress
+                pollIntervalId = setInterval(sendUpdate, 250);
+            }
+
+            function stopPolling() {
+                isPollingActive = false;
+                if (pollIntervalId) {
+                    clearInterval(pollIntervalId);
+                    pollIntervalId = null;
+                }
+                sendUpdate(); // Final state update
+            }
+
             function setupObserver(playerBar) {
-                const observer = new MutationObserver(sendUpdate);
+                // Debounced mutation observer - only triggers on significant changes
+                let mutationTimeout = null;
+                const observer = new MutationObserver(() => {
+                    if (mutationTimeout) return;
+                    mutationTimeout = setTimeout(() => {
+                        mutationTimeout = null;
+                        sendUpdate();
+                    }, 100);
+                });
                 observer.observe(playerBar, {
                     attributes: true, characterData: true,
-                    childList: true, subtree: true
+                    childList: true, subtree: true,
+                    attributeFilter: ['title', 'aria-label', 'like-status', 'value', 'aria-valuemax']
                 });
                 sendUpdate();
-                setInterval(sendUpdate, 1000);
             }
 
             function sendUpdate() {
+                // Throttle updates
+                const now = Date.now();
+                if (now - lastUpdateTime < UPDATE_THROTTLE_MS && isPollingActive) {
+                    return;
+                }
+                lastUpdateTime = now;
+
                 try {
                     const playPauseBtn = document.querySelector('.play-pause-button.ytmusic-player-bar');
                     const isPlaying = playPauseBtn ?
@@ -716,205 +628,4 @@ final class SingletonPlayerWebView {
             DiagnosticsLogger.player.info("Singleton WebView finished loading: \(webView.url?.absoluteString ?? "nil")")
         }
     }
-}
-
-// MARK: - PersistentPlayerView
-
-/// A SwiftUI view that displays the singleton WebView.
-/// The WebView is created once and reused for all playback.
-struct PersistentPlayerView: NSViewRepresentable {
-    @Environment(WebKitManager.self) private var webKitManager
-    @Environment(PlayerService.self) private var playerService
-
-    let videoId: String
-    let isExpanded: Bool
-
-    private let logger = DiagnosticsLogger.player
-
-    func makeNSView(context _: Context) -> NSView {
-        logger.info("PersistentPlayerView.makeNSView for videoId: \(videoId)")
-
-        let container = NSView(frame: .zero)
-        container.wantsLayer = true
-
-        // Get or create the singleton WebView
-        let webView = SingletonPlayerWebView.shared.getWebView(
-            webKitManager: webKitManager,
-            playerService: playerService
-        )
-
-        // Remove from any previous superview and add to this container
-        webView.removeFromSuperview()
-        webView.frame = container.bounds
-        webView.autoresizingMask = [.width, .height]
-        container.addSubview(webView)
-
-        // Load the video if needed
-        if SingletonPlayerWebView.shared.currentVideoId != videoId {
-            let url = URL(string: "https://music.youtube.com/watch?v=\(videoId)")!
-            logger.info("Initial load: \(url.absoluteString)")
-            webView.load(URLRequest(url: url))
-            SingletonPlayerWebView.shared.currentVideoId = videoId
-        }
-
-        return container
-    }
-
-    func updateNSView(_ container: NSView, context _: Context) {
-        logger.info("PersistentPlayerView.updateNSView for videoId: \(videoId)")
-
-        // Ensure WebView is in this container
-        let webView = SingletonPlayerWebView.shared.getWebView(
-            webKitManager: webKitManager,
-            playerService: playerService
-        )
-
-        if webView.superview !== container {
-            logger.info("Re-parenting WebView to current container")
-            webView.removeFromSuperview()
-            webView.frame = container.bounds
-            webView.autoresizingMask = [.width, .height]
-            container.addSubview(webView)
-        }
-
-        webView.frame = container.bounds
-
-        // Load new video if changed
-        SingletonPlayerWebView.shared.loadVideo(videoId: videoId)
-    }
-}
-
-// MARK: - MiniPlayerPopup
-
-/// A small popup overlay prompting user to click play.
-struct MiniPlayerPopup: View {
-    @Environment(WebKitManager.self) private var webKitManager
-    @Environment(PlayerService.self) private var playerService
-
-    let videoId: String
-    let songTitle: String
-
-    @State private var playbackDetected = false
-
-    var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("🎵 \(songTitle)")
-                    .font(.headline)
-                    .lineLimit(1)
-
-                Spacer()
-
-                Button {
-                    playerService.miniPlayerDismissed()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss")
-            }
-
-            // Visible mini WebView for user interaction
-            MiniPlayerWebView(
-                videoId: videoId,
-                onStateChange: { state in
-                    if case .playing = state {
-                        if !playbackDetected {
-                            playbackDetected = true
-                            // Auto-dismiss after playback starts
-                            Task { @MainActor in
-                                try? await Task.sleep(for: .seconds(1))
-                                playerService.confirmPlaybackStarted()
-                            }
-                        }
-                    }
-                }
-            )
-            .frame(height: 100)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            Text("Click play above to start music")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding()
-        .frame(width: 350)
-        .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .shadow(radius: 20)
-    }
-}
-
-// MARK: - MiniPlayerSheet
-
-/// A compact sheet that shows the YouTube Music player for a specific video.
-/// Auto-dismisses once playback starts.
-struct MiniPlayerSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(WebKitManager.self) private var webKitManager
-    @Environment(PlayerService.self) private var playerService
-
-    let videoId: String
-    let songTitle: String
-
-    @State private var isPlaying = false
-    @State private var playbackStarted = false
-
-    var body: some View {
-        VStack(spacing: 8) {
-            // Compact header
-            HStack {
-                Image(systemName: "music.note")
-                    .foregroundStyle(.secondary)
-                Text("Click play to start")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Button {
-                    playerService.miniPlayerDismissed()
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close")
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-
-            // Compact WebView - just show the player controls
-            MiniPlayerWebView(
-                videoId: videoId,
-                onStateChange: { state in
-                    if case .playing = state {
-                        if !playbackStarted {
-                            playbackStarted = true
-                            // Auto-dismiss after a short delay once playing
-                            Task { @MainActor in
-                                try? await Task.sleep(for: .milliseconds(1500))
-                                playerService.confirmPlaybackStarted()
-                                dismiss()
-                            }
-                        }
-                        isPlaying = true
-                    }
-                }
-            )
-            .frame(height: 120)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .padding(8)
-        .frame(width: 320, height: 180)
-        .background(.ultraThinMaterial)
-    }
-}
-
-#Preview {
-    MiniPlayerSheet(videoId: "dQw4w9WgXcQ", songTitle: "Test Song")
-        .environment(WebKitManager.shared)
-        .environment(PlayerService())
 }

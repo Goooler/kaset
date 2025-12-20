@@ -2,14 +2,6 @@ import Foundation
 import Observation
 import os
 
-// MARK: - Safe Array Subscript
-
-private extension Array {
-    subscript(safe index: Index) -> Element? {
-        indices.contains(index) ? self[index] : nil
-    }
-}
-
 // MARK: - PlayerService
 
 /// Controls music playback via a hidden WKWebView.
@@ -92,6 +84,9 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     /// Whether the current track is in the user's library.
     private(set) var currentTrackInLibrary: Bool = false
 
+    /// Feedback tokens for the current track (used for library add/remove).
+    private(set) var currentTrackFeedbackTokens: FeedbackTokens?
+
     // MARK: - Private Properties
 
     private let logger = DiagnosticsLogger.player
@@ -139,6 +134,9 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
             showMiniPlayer = true
             logger.info("Showing mini player for first-time user interaction")
         }
+
+        // Fetch full song metadata in the background to get feedbackTokens
+        await fetchSongMetadata(videoId: videoId)
     }
 
     /// Plays a song.
@@ -146,6 +144,15 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         logger.info("Playing song: \(song.title)")
         state = .loading
         currentTrack = song
+
+        // Use existing feedbackTokens if the song already has them
+        if let tokens = song.feedbackTokens {
+            currentTrackFeedbackTokens = tokens
+            currentTrackInLibrary = song.isInLibrary ?? false
+            if let likeStatus = song.likeStatus {
+                currentTrackLikeStatus = likeStatus
+            }
+        }
 
         pendingPlayVideoId = song.videoId
 
@@ -158,6 +165,11 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
             // First time: show the mini player for user interaction
             showMiniPlayer = true
             logger.info("Showing mini player for first-time user interaction")
+        }
+
+        // Fetch full song metadata if we don't have feedbackTokens
+        if song.feedbackTokens == nil {
+            await fetchSongMetadata(videoId: song.videoId)
         }
     }
 
@@ -468,11 +480,41 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
 
     /// Toggles the library status of the current track.
     func toggleLibraryStatus() {
-        guard currentTrack != nil else { return }
-        logger.info("Toggling library status for current track")
+        guard let track = currentTrack else { return }
+        logger.info("Toggling library status for current track: \(track.videoId)")
 
+        // Determine which token to use based on current state
+        let isCurrentlyInLibrary = currentTrackInLibrary
+        let tokenToUse = isCurrentlyInLibrary
+            ? currentTrackFeedbackTokens?.remove
+            : currentTrackFeedbackTokens?.add
+
+        guard let token = tokenToUse else {
+            logger.warning("No feedback token available for library toggle")
+            return
+        }
+
+        // Optimistic update
+        let previousState = currentTrackInLibrary
         currentTrackInLibrary.toggle()
-        SingletonPlayerWebView.shared.clickAddToLibraryButton()
+
+        // Use API call for reliable library management
+        Task {
+            do {
+                try await ytMusicClient?.editSongLibraryStatus(feedbackTokens: [token])
+                let action = isCurrentlyInLibrary ? "removed from" : "added to"
+                logger.info("Successfully \(action) library")
+
+                // After successful toggle, we need to swap the tokens
+                // The remove token becomes add, and vice versa
+                // Re-fetch metadata to get updated tokens
+                await fetchSongMetadata(videoId: track.videoId)
+            } catch {
+                logger.error("Failed to toggle library status: \(error.localizedDescription)")
+                // Revert on failure
+                currentTrackInLibrary = previousState
+            }
+        }
     }
 
     /// Updates the like status from WebView observation.
@@ -484,6 +526,50 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     private func resetTrackStatus() {
         currentTrackLikeStatus = .indifferent
         currentTrackInLibrary = false
+        currentTrackFeedbackTokens = nil
+    }
+
+    /// Fetches full song metadata including feedbackTokens from the API.
+    private func fetchSongMetadata(videoId: String) async {
+        guard let client = ytMusicClient else {
+            logger.warning("No YTMusicClient available for fetching song metadata")
+            return
+        }
+
+        do {
+            let songData = try await client.getSong(videoId: videoId)
+
+            // Update current track with full metadata if it's still the same song
+            if currentTrack?.videoId == videoId {
+                // Preserve the title/artist from WebView if they're better
+                let title = currentTrack?.title == "Loading..." ? songData.title : (currentTrack?.title ?? songData.title)
+                let artists = currentTrack?.artists.isEmpty == true ? songData.artists : (currentTrack?.artists ?? songData.artists)
+
+                currentTrack = Song(
+                    id: videoId,
+                    title: title,
+                    artists: artists,
+                    album: songData.album ?? currentTrack?.album,
+                    duration: songData.duration ?? currentTrack?.duration,
+                    thumbnailURL: songData.thumbnailURL ?? currentTrack?.thumbnailURL,
+                    videoId: videoId,
+                    likeStatus: songData.likeStatus,
+                    isInLibrary: songData.isInLibrary,
+                    feedbackTokens: songData.feedbackTokens
+                )
+
+                // Update service state
+                if let likeStatus = songData.likeStatus {
+                    self.currentTrackLikeStatus = likeStatus
+                }
+                self.currentTrackInLibrary = songData.isInLibrary ?? false
+                self.currentTrackFeedbackTokens = songData.feedbackTokens
+
+                self.logger.info("Updated track metadata - inLibrary: \(self.currentTrackInLibrary), hasTokens: \(self.currentTrackFeedbackTokens != nil)")
+            }
+        } catch {
+            logger.warning("Failed to fetch song metadata: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Private Methods

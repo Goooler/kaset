@@ -32,6 +32,12 @@ final class YTMusicClient: YTMusicClientProtocol {
 
     // MARK: - Public API Methods
 
+    /// Maximum number of continuations to fetch initially for faster perceived load.
+    private static let maxInitialContinuations = 3
+
+    /// Maximum total continuations to prevent infinite loops.
+    private static let maxTotalContinuations = 10
+
     /// Fetches the home page content with all sections (including continuations).
     func getHome() async throws -> HomeResponse {
         logger.info("Fetching home page")
@@ -43,12 +49,11 @@ final class YTMusicClient: YTMusicClientProtocol {
         let data = try await request("browse", body: body, ttl: APICache.TTL.home)
         var response = HomeResponseParser.parse(data)
 
-        // Fetch continuation sections if available
+        // Fetch limited continuations for faster initial load
         var continuationToken = HomeResponseParser.extractContinuationToken(from: data)
         var continuationCount = 0
-        let maxContinuations = 10 // Prevent infinite loops
 
-        while let token = continuationToken, continuationCount < maxContinuations {
+        while let token = continuationToken, continuationCount < Self.maxInitialContinuations {
             continuationCount += 1
             logger.info("Fetching home continuation \(continuationCount)")
 
@@ -63,8 +68,66 @@ final class YTMusicClient: YTMusicClientProtocol {
             }
         }
 
-        logger.info("Total home sections after continuations: \(response.sections.count)")
+        logger.info("Total home sections after initial continuations: \(response.sections.count)")
         return response
+    }
+
+    /// Fetches additional home sections via continuation.
+    /// Call this to progressively load more content after initial load.
+    /// - Parameter currentSections: The current sections to append to
+    /// - Returns: Updated HomeResponse with additional sections, or nil if no more available
+    func getHomeMore(after currentSections: [HomeSection]) async throws -> HomeResponse? {
+        logger.info("Fetching more home sections")
+
+        // We need to refetch and skip to the continuation point
+        // This is a simplified approach - in production, you'd cache the continuation token
+        let body: [String: Any] = [
+            "browseId": "FEmusic_home",
+        ]
+
+        let data = try await request("browse", body: body, ttl: APICache.TTL.home)
+        var token = HomeResponseParser.extractContinuationToken(from: data)
+
+        // Skip the continuations we already have (approximation based on section count)
+        var skipped = 0
+        let skipCount = max(0, Self.maxInitialContinuations)
+
+        while let currentToken = token, skipped < skipCount {
+            let continuationData = try await requestContinuation(currentToken)
+            token = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
+            skipped += 1
+        }
+
+        // Now fetch additional sections
+        guard let nextToken = token else {
+            logger.info("No more home continuations available")
+            return nil
+        }
+
+        var additionalSections: [HomeSection] = []
+        var continuationToken: String? = nextToken
+        var continuationCount = 0
+        let maxAdditional = Self.maxTotalContinuations - Self.maxInitialContinuations
+
+        while let currentToken = continuationToken, continuationCount < maxAdditional {
+            continuationCount += 1
+            logger.info("Fetching additional home continuation \(continuationCount)")
+
+            do {
+                let continuationData = try await requestContinuation(currentToken)
+                let sections = HomeResponseParser.parseContinuation(continuationData)
+                additionalSections.append(contentsOf: sections)
+                continuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
+            } catch {
+                logger.warning("Failed to fetch additional continuation: \(error.localizedDescription)")
+                break
+            }
+        }
+
+        guard !additionalSections.isEmpty else { return nil }
+
+        logger.info("Fetched \(additionalSections.count) additional home sections")
+        return HomeResponse(sections: currentSections + additionalSections)
     }
 
     /// Fetches the explore page content with all sections.
@@ -78,12 +141,11 @@ final class YTMusicClient: YTMusicClientProtocol {
         let data = try await request("browse", body: body, ttl: APICache.TTL.home)
         var response = HomeResponseParser.parse(data)
 
-        // Fetch continuation sections if available
+        // Fetch limited continuations for faster initial load
         var continuationToken = HomeResponseParser.extractContinuationToken(from: data)
         var continuationCount = 0
-        let maxContinuations = 10
 
-        while let token = continuationToken, continuationCount < maxContinuations {
+        while let token = continuationToken, continuationCount < Self.maxInitialContinuations {
             continuationCount += 1
             logger.info("Fetching explore continuation \(continuationCount)")
 
@@ -98,7 +160,7 @@ final class YTMusicClient: YTMusicClientProtocol {
             }
         }
 
-        logger.info("Total explore sections after continuations: \(response.sections.count)")
+        logger.info("Total explore sections after initial continuations: \(response.sections.count)")
         return response
     }
 
@@ -187,6 +249,227 @@ final class YTMusicClient: YTMusicClientProtocol {
         let detail = ArtistParser.parseArtistDetail(data, artistId: id)
         logger.info("Parsed artist '\(detail.artist.name)' with \(detail.songs.count) songs and \(detail.albums.count) albums")
         return detail
+    }
+
+    // MARK: - Song Metadata
+
+    /// Fetches full song metadata including feedbackTokens for library management.
+    /// Uses the `next` endpoint to get track details with library status.
+    /// - Parameter videoId: The video ID of the song
+    /// - Returns: A Song with full metadata including feedbackTokens and inLibrary status
+    func getSong(videoId: String) async throws -> Song {
+        logger.info("Fetching song metadata: \(videoId)")
+
+        // Use the "next" endpoint which returns track info with feedbackTokens
+        let body: [String: Any] = [
+            "videoId": videoId,
+            "enablePersistentPlaylistPanel": true,
+            "isAudioOnly": true,
+            "tunerSettingValue": "AUTOMIX_SETTING_NORMAL",
+        ]
+
+        let data = try await request("next", body: body)
+        return try parseSongMetadata(data, videoId: videoId)
+    }
+
+    /// Parses song metadata from the "next" endpoint response.
+    private func parseSongMetadata(_ data: [String: Any], videoId: String) throws -> Song {
+        let panelVideoRenderer = try extractPanelVideoRenderer(from: data, videoId: videoId)
+
+        let title = parseTitle(from: panelVideoRenderer)
+        let artists = parseArtists(from: panelVideoRenderer)
+        let thumbnailURL = parseThumbnail(from: panelVideoRenderer)
+        let duration = parseDuration(from: panelVideoRenderer)
+        let menuData = parseMenuData(from: panelVideoRenderer)
+
+        logger.info("Parsed song '\(title)' - inLibrary: \(menuData.isInLibrary), hasTokens: \(menuData.feedbackTokens != nil)")
+
+        return Song(
+            id: videoId,
+            title: title,
+            artists: artists,
+            album: nil,
+            duration: duration,
+            thumbnailURL: thumbnailURL,
+            videoId: videoId,
+            likeStatus: menuData.likeStatus,
+            isInLibrary: menuData.isInLibrary,
+            feedbackTokens: menuData.feedbackTokens
+        )
+    }
+
+    // MARK: - Song Metadata Parsing Helpers
+
+    /// Extracts the playlistPanelVideoRenderer from the next endpoint response.
+    private func extractPanelVideoRenderer(from data: [String: Any], videoId: String) throws -> [String: Any] {
+        guard let contents = data["contents"] as? [String: Any],
+              let watchNextRenderer = contents["singleColumnMusicWatchNextResultsRenderer"] as? [String: Any],
+              let tabbedRenderer = watchNextRenderer["tabbedRenderer"] as? [String: Any],
+              let watchNextTabbedResults = tabbedRenderer["watchNextTabbedResultsRenderer"] as? [String: Any],
+              let tabs = watchNextTabbedResults["tabs"] as? [[String: Any]],
+              let firstTab = tabs.first,
+              let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
+              let tabContent = tabRenderer["content"] as? [String: Any],
+              let musicQueueRenderer = tabContent["musicQueueRenderer"] as? [String: Any],
+              let queueContent = musicQueueRenderer["content"] as? [String: Any],
+              let playlistPanelRenderer = queueContent["playlistPanelRenderer"] as? [String: Any],
+              let playlistContents = playlistPanelRenderer["contents"] as? [[String: Any]],
+              let firstItem = playlistContents.first,
+              let panelVideoRenderer = firstItem["playlistPanelVideoRenderer"] as? [String: Any]
+        else {
+            logger.warning("Could not parse song metadata structure for \(videoId)")
+            throw YTMusicError.parseError(message: "Failed to parse song metadata")
+        }
+        return panelVideoRenderer
+    }
+
+    /// Parses the song title from the panel video renderer.
+    private func parseTitle(from renderer: [String: Any]) -> String {
+        if let titleData = renderer["title"] as? [String: Any],
+           let runs = titleData["runs"] as? [[String: Any]],
+           let firstRun = runs.first,
+           let text = firstRun["text"] as? String
+        {
+            return text
+        }
+        return "Unknown"
+    }
+
+    /// Parses artists from the panel video renderer's longBylineText.
+    private func parseArtists(from renderer: [String: Any]) -> [Artist] {
+        var artists: [Artist] = []
+        guard let bylineData = renderer["longBylineText"] as? [String: Any],
+              let runs = bylineData["runs"] as? [[String: Any]]
+        else { return artists }
+
+        for run in runs {
+            guard let text = run["text"] as? String,
+                  text != " • ", text != " & ", text != ", ", text != " · "
+            else { continue }
+
+            let artistId: String
+            if let navEndpoint = run["navigationEndpoint"] as? [String: Any],
+               let browseEndpoint = navEndpoint["browseEndpoint"] as? [String: Any],
+               let browseId = browseEndpoint["browseId"] as? String
+            {
+                artistId = browseId
+            } else {
+                artistId = UUID().uuidString
+            }
+            artists.append(Artist(id: artistId, name: text))
+        }
+        return artists
+    }
+
+    /// Parses the thumbnail URL from the panel video renderer.
+    private func parseThumbnail(from renderer: [String: Any]) -> URL? {
+        guard let thumbnail = renderer["thumbnail"] as? [String: Any],
+              let thumbnails = thumbnail["thumbnails"] as? [[String: Any]],
+              let lastThumb = thumbnails.last,
+              let urlString = lastThumb["url"] as? String
+        else { return nil }
+
+        let normalizedURL = urlString.hasPrefix("//") ? "https:" + urlString : urlString
+        return URL(string: normalizedURL)
+    }
+
+    /// Parses the duration from the panel video renderer.
+    private func parseDuration(from renderer: [String: Any]) -> TimeInterval? {
+        guard let lengthText = renderer["lengthText"] as? [String: Any],
+              let runs = lengthText["runs"] as? [[String: Any]],
+              let firstRun = runs.first,
+              let text = firstRun["text"] as? String
+        else { return nil }
+
+        return ParsingHelpers.parseDuration(text)
+    }
+
+    /// Contains parsed menu data including feedback tokens, library status, and like status.
+    private struct MenuParseResult {
+        var feedbackTokens: FeedbackTokens?
+        var isInLibrary: Bool
+        var likeStatus: LikeStatus
+    }
+
+    /// Parses menu data (feedbackTokens, library status, like status) from the panel video renderer.
+    private func parseMenuData(from renderer: [String: Any]) -> MenuParseResult {
+        var result = MenuParseResult(feedbackTokens: nil, isInLibrary: false, likeStatus: .indifferent)
+
+        guard let menu = renderer["menu"] as? [String: Any],
+              let menuRenderer = menu["menuRenderer"] as? [String: Any],
+              let items = menuRenderer["items"] as? [[String: Any]]
+        else { return result }
+
+        for item in items {
+            parseMenuServiceItem(item, into: &result)
+            parseToggleMenuItem(item, into: &result)
+        }
+
+        parseLikeStatus(from: menuRenderer, into: &result)
+        return result
+    }
+
+    /// Parses a menuServiceItemRenderer for library tokens.
+    private func parseMenuServiceItem(_ item: [String: Any], into result: inout MenuParseResult) {
+        guard let menuServiceItem = item["menuServiceItemRenderer"] as? [String: Any],
+              let icon = menuServiceItem["icon"] as? [String: Any],
+              let iconType = icon["iconType"] as? String
+        else { return }
+
+        let token = extractFeedbackToken(from: menuServiceItem, key: "serviceEndpoint")
+
+        switch iconType {
+        case "LIBRARY_ADD", "BOOKMARK_BORDER":
+            if let token { result.feedbackTokens = FeedbackTokens(add: token, remove: nil) }
+        case "LIBRARY_REMOVE", "BOOKMARK":
+            result.isInLibrary = true
+            if let token { result.feedbackTokens = FeedbackTokens(add: nil, remove: token) }
+        default:
+            break
+        }
+    }
+
+    /// Parses a toggleMenuServiceItemRenderer for library tokens.
+    private func parseToggleMenuItem(_ item: [String: Any], into result: inout MenuParseResult) {
+        guard let toggleItem = item["toggleMenuServiceItemRenderer"] as? [String: Any],
+              let defaultIcon = toggleItem["defaultIcon"] as? [String: Any],
+              let iconType = defaultIcon["iconType"] as? String
+        else { return }
+
+        let defaultToken = extractFeedbackToken(from: toggleItem, key: "defaultServiceEndpoint")
+        let toggledToken = extractFeedbackToken(from: toggleItem, key: "toggledServiceEndpoint")
+
+        if iconType == "LIBRARY_ADD" || iconType == "BOOKMARK_BORDER" {
+            result.feedbackTokens = FeedbackTokens(add: defaultToken, remove: toggledToken)
+        } else if iconType == "LIBRARY_REMOVE" || iconType == "BOOKMARK" {
+            result.isInLibrary = true
+            result.feedbackTokens = FeedbackTokens(add: toggledToken, remove: defaultToken)
+        }
+    }
+
+    /// Extracts a feedback token from a service endpoint.
+    private func extractFeedbackToken(from dict: [String: Any], key: String) -> String? {
+        guard let endpoint = dict[key] as? [String: Any],
+              let feedback = endpoint["feedbackEndpoint"] as? [String: Any]
+        else { return nil }
+        return feedback["feedbackToken"] as? String
+    }
+
+    /// Parses the like status from the menu renderer's top level buttons.
+    private func parseLikeStatus(from menuRenderer: [String: Any], into result: inout MenuParseResult) {
+        guard let topLevelButtons = menuRenderer["topLevelButtons"] as? [[String: Any]] else { return }
+
+        for button in topLevelButtons {
+            if let likeButtonRenderer = button["likeButtonRenderer"] as? [String: Any],
+               let status = likeButtonRenderer["likeStatus"] as? String
+            {
+                result.likeStatus = switch status {
+                case "LIKE": .like
+                case "DISLIKE": .dislike
+                default: .indifferent
+                }
+            }
+        }
     }
 
     // MARK: - Like/Library Actions
@@ -336,8 +619,8 @@ final class YTMusicClient: YTMusicClientProtocol {
 
     /// Makes an authenticated request to the API with optional caching and retry.
     private func request(_ endpoint: String, body: [String: Any], ttl: TimeInterval? = nil) async throws -> [String: Any] {
-        // Generate cache key from endpoint and body
-        let cacheKey = "\(endpoint):\(body.description.hashValue)"
+    // Generate stable cache key from endpoint and body
+    let cacheKey = APICache.stableCacheKey(endpoint: endpoint, body: body)
 
         // Check cache first
         if ttl != nil, let cached = APICache.shared.get(key: cacheKey) {

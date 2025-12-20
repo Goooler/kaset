@@ -8,6 +8,14 @@ struct PlayerBar: View {
 
     @State private var isHovering = false
 
+    /// Local seek value for smooth slider dragging without network calls on every change.
+    @State private var seekValue: Double = 0
+    @State private var isSeeking = false
+
+    /// Local volume value for smooth slider dragging.
+    @State private var volumeValue: Double = 1.0
+    @State private var isAdjustingVolume = false
+
     var body: some View {
         GlassEffectContainer(spacing: 0) {
             HStack(spacing: 0) {
@@ -34,6 +42,18 @@ struct PlayerBar: View {
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovering = hovering
+            }
+        }
+        .onChange(of: playerService.progress) { _, newValue in
+            // Sync local seek value when not actively seeking
+            if !isSeeking, playerService.duration > 0 {
+                seekValue = newValue / playerService.duration
+            }
+        }
+        .onChange(of: playerService.volume) { _, newValue in
+            // Sync local volume value when not actively adjusting
+            if !isAdjustingVolume {
+                volumeValue = newValue
             }
         }
     }
@@ -99,30 +119,46 @@ struct PlayerBar: View {
 
     private var seekBarView: some View {
         HStack(spacing: 10) {
-            // Elapsed time
-            Text(formatTime(playerService.progress))
+            // Elapsed time - show seek position while dragging, actual progress otherwise
+            Text(formatTime(isSeeking ? seekValue * playerService.duration : playerService.progress))
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(width: 40, alignment: .trailing)
 
-            // Seek slider
-            Slider(
-                value: Binding(
-                    get: { playerService.duration > 0 ? playerService.progress / playerService.duration : 0 },
-                    set: { newValue in
-                        let seekTime = newValue * playerService.duration
-                        Task { await playerService.seek(to: seekTime) }
-                    }
-                ),
-                in: 0 ... 1
-            )
-            .controlSize(.small)
+            // Seek slider with debounced updates
+            Slider(value: $seekValue, in: 0 ... 1)
+                .controlSize(.small)
+                .onChange(of: seekValue) { _, _ in
+                    // Mark as seeking to prevent external updates
+                    isSeeking = true
+                }
+                .onSubmit {
+                    // Called when user presses Enter, perform seek
+                    performSeek()
+                }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onEnded { _ in
+                            // Seek only when drag ends
+                            performSeek()
+                        }
+                )
 
             // Remaining time
-            Text("-\(formatTime(playerService.duration - playerService.progress))")
+            Text("-\(formatTime(playerService.duration - (isSeeking ? seekValue * playerService.duration : playerService.progress)))")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .frame(width: 40, alignment: .leading)
+        }
+    }
+
+    /// Performs the actual seek operation after slider interaction ends.
+    private func performSeek() {
+        guard isSeeking else { return }
+        let seekTime = seekValue * playerService.duration
+        Task {
+            await playerService.seek(to: seekTime)
+            isSeeking = false
         }
     }
 
@@ -238,19 +274,28 @@ struct PlayerBar: View {
                 .foregroundStyle(.primary.opacity(0.6))
                 .frame(width: 16)
 
-            Slider(
-                value: Binding(
-                    get: { playerService.volume },
-                    set: { newValue in
-                        Task {
-                            await playerService.setVolume(newValue)
+            // Volume slider with debounced updates
+            Slider(value: $volumeValue, in: 0 ... 1)
+                .frame(width: 80)
+                .controlSize(.small)
+                .onChange(of: volumeValue) { _, _ in
+                    isAdjustingVolume = true
+                }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onEnded { _ in
+                            performVolumeChange()
                         }
-                    }
-                ),
-                in: 0 ... 1
-            )
-            .frame(width: 80)
-            .controlSize(.small)
+                )
+        }
+    }
+
+    /// Performs the actual volume change after slider interaction ends.
+    private func performVolumeChange() {
+        guard isAdjustingVolume else { return }
+        Task {
+            await playerService.setVolume(volumeValue)
+            isAdjustingVolume = false
         }
     }
 
@@ -305,12 +350,13 @@ struct PlayerBar: View {
     }
 
     private var volumeIcon: String {
-        if playerService.volume == 0 {
-            "speaker.slash.fill"
-        } else if playerService.volume < 0.5 {
-            "speaker.wave.1.fill"
+        let currentVolume = isAdjustingVolume ? volumeValue : playerService.volume
+        if currentVolume == 0 {
+            return "speaker.slash.fill"
+        } else if currentVolume < 0.5 {
+            return "speaker.wave.1.fill"
         } else {
-            "speaker.wave.2.fill"
+            return "speaker.wave.2.fill"
         }
     }
 }

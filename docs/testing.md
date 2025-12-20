@@ -339,12 +339,12 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.app
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
 
       - name: Build
         run: xcodebuild -scheme Kaset -destination 'platform=macOS' build

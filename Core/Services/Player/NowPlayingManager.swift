@@ -11,17 +11,11 @@ final class NowPlayingManager {
     private let playerService: PlayerService
     private let logger = DiagnosticsLogger.player
     private var observationTask: Task<Void, Never>?
-    private var artworkCache: [URL: CGImage] = [:]
 
     init(playerService: PlayerService) {
         self.playerService = playerService
         setupRemoteCommands()
         startObserving()
-    }
-
-    func stopObserving() {
-        observationTask?.cancel()
-        observationTask = nil
     }
 
     // MARK: - Remote Commands
@@ -127,23 +121,5 @@ final class NowPlayingManager {
         // The closure is called on a background thread and NSImage is not thread-safe
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-    }
-
-    private func fetchArtwork(from url: URL) async {
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            guard let nsImage = NSImage(data: data),
-                  let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
-            else { return }
-
-            await MainActor.run {
-                artworkCache[url] = cgImage
-                updateNowPlayingInfo()
-            }
-        } catch {
-            await MainActor.run {
-                logger.debug("Failed to fetch artwork: \(error.localizedDescription)")
-            }
-        }
     }
 }

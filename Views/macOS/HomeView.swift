@@ -14,7 +14,7 @@ struct HomeView: View {
                 switch viewModel.loadingState {
                 case .idle, .loading:
                     loadingView
-                case .loaded:
+                case .loaded, .loadingMore:
                     contentView
                 case let .error(message):
                     errorView(message: message)
@@ -69,6 +69,10 @@ struct HomeView: View {
             LazyVStack(alignment: .leading, spacing: 32) {
                 ForEach(viewModel.sections) { section in
                     sectionView(section)
+            .task {
+              // Prefetch images when section becomes visible
+              await prefetchImagesAsync(for: section)
+            }
                 }
             }
             .padding(.horizontal, 24)
@@ -95,10 +99,7 @@ struct HomeView: View {
                     }
                 }
             }
-        }
-        .onAppear {
-            prefetchImages(for: section)
-        }
+    }
     }
 
     /// Renders a chart section as a vertical numbered list.
@@ -209,15 +210,19 @@ struct HomeView: View {
 
     // MARK: - Image Prefetching
 
-    /// Prefetches images for items that will soon be visible.
-    private func prefetchImages(for section: HomeSection) {
-        Task.detached(priority: .utility) {
-            for item in section.items.prefix(10) {
-                if let url = item.thumbnailURL?.highQualityThumbnailURL {
-                    _ = await ImageCache.shared.image(for: url)
-                }
-            }
-        }
+  /// Thumbnail display size used throughout the app.
+  private static let thumbnailDisplaySize = CGSize(width: 160, height: 160)
+
+  /// Prefetches images for items in a section with controlled concurrency and downsampling.
+  private func prefetchImagesAsync(for section: HomeSection) async {
+    let urls = section.items.prefix(10).compactMap { $0.thumbnailURL?.highQualityThumbnailURL }
+    guard !urls.isEmpty else { return }
+
+    await ImageCache.shared.prefetch(
+      urls: urls,
+      targetSize: Self.thumbnailDisplaySize,
+      maxConcurrent: 4
+    )
     }
 
     private func errorView(message: String) -> some View {
