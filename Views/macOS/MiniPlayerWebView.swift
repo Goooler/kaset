@@ -199,8 +199,9 @@ struct MiniPlayerWebView: NSViewRepresentable {
 
 // MARK: - CompactPlayToast
 
-/// A very small, unobtrusive toast that appears to let the user start playback.
+/// A compact, unobtrusive toast that appears to let the user start playback.
 /// YouTube Music requires a user gesture, so we show this minimal popup.
+/// Only shown on first playback; subsequent plays auto-start.
 struct CompactPlayToast: View {
     @Environment(WebKitManager.self) private var webKitManager
     @Environment(PlayerService.self) private var playerService
@@ -227,7 +228,7 @@ struct CompactPlayToast: View {
                     }
                 }
             )
-            .frame(width: 160, height: 90)
+            .frame(width: 120, height: 68)
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
             // Small dismiss button
@@ -235,17 +236,18 @@ struct CompactPlayToast: View {
                 playerService.confirmPlaybackStarted()
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.8))
-                    .shadow(radius: 2)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .shadow(radius: 1)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Close")
-            .padding(4)
+            .padding(3)
         }
-        .frame(width: 160, height: 90)
+        .frame(width: 120, height: 68)
         .clipShape(RoundedRectangle(cornerRadius: 6))
-        .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+        .opacity(0.95)
+        .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
     }
 }
 

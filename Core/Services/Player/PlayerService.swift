@@ -76,6 +76,10 @@ final class PlayerService: NSObject {
     /// The video ID that needs to be played in the mini player.
     private(set) var pendingPlayVideoId: String?
 
+    /// Whether the user has successfully interacted at least once this session.
+    /// After first successful playback, we can auto-play without showing the popup.
+    private(set) var hasUserInteractedThisSession: Bool = false
+
     // MARK: - Private Properties
 
     private let logger = DiagnosticsLogger.player
@@ -104,10 +108,19 @@ final class PlayerService: NSObject {
             videoId: videoId
         )
 
-        // Show the mini player for user interaction
         pendingPlayVideoId = videoId
-        showMiniPlayer = true
-        logger.info("Showing mini player for user to start playback")
+
+        // If user has already interacted this session, auto-play without popup
+        if hasUserInteractedThisSession {
+            logger.info("User has interacted before, auto-playing without popup")
+            showMiniPlayer = false
+            // Load the video directly - WebView session should allow autoplay
+            SingletonPlayerWebView.shared.loadVideo(videoId: videoId)
+        } else {
+            // First time: show the mini player for user interaction
+            showMiniPlayer = true
+            logger.info("Showing mini player for first-time user interaction")
+        }
     }
 
     /// Plays a song.
@@ -116,17 +129,26 @@ final class PlayerService: NSObject {
         state = .loading
         currentTrack = song
 
-        // Show the mini player for user interaction
         pendingPlayVideoId = song.videoId
-        showMiniPlayer = true
-        logger.info("Showing mini player for user to start playback")
+
+        // If user has already interacted this session, auto-play without popup
+        if hasUserInteractedThisSession {
+            logger.info("User has interacted before, auto-playing without popup")
+            showMiniPlayer = false
+            SingletonPlayerWebView.shared.loadVideo(videoId: song.videoId)
+        } else {
+            // First time: show the mini player for user interaction
+            showMiniPlayer = true
+            logger.info("Showing mini player for first-time user interaction")
+        }
     }
 
     /// Called when the mini player confirms playback has started.
     func confirmPlaybackStarted() {
         showMiniPlayer = false
         state = .playing
-        logger.info("Playback confirmed started")
+        hasUserInteractedThisSession = true
+        logger.info("Playback confirmed started, user interaction recorded")
     }
 
     /// Called when the mini player is dismissed.

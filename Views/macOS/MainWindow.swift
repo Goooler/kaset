@@ -33,33 +33,34 @@ struct MainWindow: View {
 
             // Persistent WebView - always present once a video has been requested
             // Uses a SINGLETON WebView instance that persists for the app lifetime
-            // Resizes between visible (160x90) and hidden (1x1) based on showMiniPlayer
+            // Compact size (120x68) for first-time interaction, then hidden (1x1)
             if let videoId = playerService.pendingPlayVideoId {
                 ZStack(alignment: .topTrailing) {
                     PersistentPlayerView(videoId: videoId, isExpanded: playerService.showMiniPlayer)
                         .frame(
-                            width: playerService.showMiniPlayer ? 160 : 1,
-                            height: playerService.showMiniPlayer ? 90 : 1
+                            width: playerService.showMiniPlayer ? 120 : 1,
+                            height: playerService.showMiniPlayer ? 68 : 1
                         )
                         .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .opacity(playerService.showMiniPlayer ? 0.95 : 0)
 
                     if playerService.showMiniPlayer {
                         Button {
                             playerService.confirmPlaybackStarted()
                         } label: {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 16))
-                                .foregroundStyle(.white.opacity(0.9))
-                                .shadow(radius: 2)
+                                .font(.system(size: 14))
+                                .foregroundStyle(.white.opacity(0.8))
+                                .shadow(radius: 1)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Close")
-                        .padding(4)
+                        .padding(3)
                     }
                 }
-                .shadow(color: playerService.showMiniPlayer ? .black.opacity(0.3) : .clear, radius: 8, y: 4)
-                .padding(.trailing, playerService.showMiniPlayer ? 16 : 0)
-                .padding(.bottom, playerService.showMiniPlayer ? 80 : 0)
+                .shadow(color: playerService.showMiniPlayer ? .black.opacity(0.2) : .clear, radius: 6, y: 3)
+                .padding(.trailing, playerService.showMiniPlayer ? 12 : 0)
+                .padding(.bottom, playerService.showMiniPlayer ? 76 : 0)
                 .allowsHitTesting(playerService.showMiniPlayer)
             }
         }
