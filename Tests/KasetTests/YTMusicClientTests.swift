@@ -1,6 +1,6 @@
 import CryptoKit
 import XCTest
-@testable import YouTubeMusic
+@testable import Kaset
 
 /// Tests for YTMusicClient.
 @MainActor

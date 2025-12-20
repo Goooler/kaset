@@ -1,6 +1,6 @@
 # Architecture & Services
 
-This document provides detailed information about YouTube Music's architecture, services, and design patterns.
+This document provides detailed information about Kaset's architecture, services, and design patterns.
 
 ## Core Structure
 
@@ -19,7 +19,7 @@ Core/               → Shared logic (platform-independent)
   └── Utilities/    → Helpers (DiagnosticsLogger, extensions)
 Views/
   └── macOS/        → SwiftUI views (MainWindow, Sidebar, PlayerBar, etc.)
-Tests/              → Unit tests (YouTubeMusicTests/)
+Tests/              → Unit tests (KasetTests/)
 ```
 
 ## State Management

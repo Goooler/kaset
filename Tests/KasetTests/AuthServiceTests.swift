@@ -1,5 +1,5 @@
 import XCTest
-@testable import YouTubeMusic
+@testable import Kaset
 
 /// Tests for AuthService.
 @MainActor

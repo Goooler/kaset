@@ -1,8 +1,8 @@
 import XCTest
-@testable import YouTubeMusic
+@testable import Kaset
 
-/// Main test suite for YouTube Music app.
-final class YouTubeMusicTests: XCTestCase {
+/// Main test suite for Kaset app.
+final class KasetTests: XCTestCase {
     func testAppConfiguration() {
         // Verify app can be configured correctly
         XCTAssertNotNil(Bundle.main.bundleIdentifier)

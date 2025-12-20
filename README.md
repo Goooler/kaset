@@ -1,4 +1,4 @@
-# YouTube Music for macOS
+# Kaset
 
 A native macOS YouTube Music client built with Swift and SwiftUI.
 
@@ -19,21 +19,21 @@ A native macOS YouTube Music client built with Swift and SwiftUI.
 ## Building
 
 1. Clone the repository
-2. Open `YouTubeMusic.xcodeproj` in Xcode
+2. Open `Kaset.xcodeproj` in Xcode
 3. Build and run (⌘R)
 
 ```bash
 # Build from command line
-xcodebuild -scheme YouTubeMusic -destination 'platform=macOS' build
+xcodebuild -scheme Kaset -destination 'platform=macOS' build
 
 # Run tests
-xcodebuild -scheme YouTubeMusic -destination 'platform=macOS' test
+xcodebuild -scheme Kaset -destination 'platform=macOS' test
 ```
 
 ## Project Structure
 
 ```
-App/                → App entry point (YouTubeMusicApp.swift)
+App/                → App entry point (KasetApp.swift)
 Core/
   ├── Models/       → Data models (Song, Playlist, Album, Artist, etc.)
   ├── Services/
@@ -45,7 +45,7 @@ Core/
   └── Utilities/    → DiagnosticsLogger, extensions
 Views/
   └── macOS/        → SwiftUI views (MainWindow, Sidebar, PlayerBar, etc.)
-Tests/              → Unit tests (YouTubeMusicTests/)
+Tests/              → Unit tests (KasetTests/)
 ```
 
 ## Architecture

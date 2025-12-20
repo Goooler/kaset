@@ -1,25 +1,25 @@
 # Testing Guide
 
-This document covers testing strategies, commands, and best practices for YouTube Music.
+This document covers testing strategies, commands, and best practices for Kaset.
 
 ## Test Commands
 
 ### Unit Tests
 
 ```bash
-xcodebuild -scheme YouTubeMusic -destination 'platform=macOS' test -only-testing:YouTubeMusicTests
+xcodebuild -scheme Kaset -destination 'platform=macOS' test -only-testing:KasetTests
 ```
 
 ### Full Suite
 
 ```bash
-xcodebuild -scheme YouTubeMusic -destination 'platform=macOS' test
+xcodebuild -scheme Kaset -destination 'platform=macOS' test
 ```
 
 ### Build Only
 
 ```bash
-xcodebuild -scheme YouTubeMusic -destination 'platform=macOS' build
+xcodebuild -scheme Kaset -destination 'platform=macOS' build
 ```
 
 ### Lint & Format
@@ -34,7 +34,7 @@ New code in `Core/` (Services, Models, ViewModels, Utilities) must include unit 
 
 ### Creating a Test File
 
-1. Create test file in `Tests/YouTubeMusicTests/` matching the source file name
+1. Create test file in `Tests/KasetTests/` matching the source file name
    - Example: `YTMusicClient.swift` → `YTMusicClientTests.swift`
 2. Add the test file to the Xcode project
 3. Run tests to verify
@@ -43,7 +43,7 @@ New code in `Core/` (Services, Models, ViewModels, Utilities) must include unit 
 
 ```swift
 import XCTest
-@testable import YouTubeMusic
+@testable import Kaset
 
 @MainActor
 final class MyServiceTests: XCTestCase {
@@ -261,8 +261,8 @@ To test auth recovery:
 Use Xcode's Console to filter logs:
 
 ```
-subsystem:YouTubeMusic category:player
-subsystem:YouTubeMusic category:auth
+subsystem:Kaset category:player
+subsystem:Kaset category:auth
 ```
 
 ### WebView Debugging
@@ -296,10 +296,10 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_15.app
       
       - name: Build
-        run: xcodebuild -scheme YouTubeMusic -destination 'platform=macOS' build
+        run: xcodebuild -scheme Kaset -destination 'platform=macOS' build
       
       - name: Test
-        run: xcodebuild -scheme YouTubeMusic -destination 'platform=macOS' test
+        run: xcodebuild -scheme Kaset -destination 'platform=macOS' test
       
       - name: Lint
         run: swiftlint --strict

@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 
-/// Main entry point for the YouTube Music macOS application.
+/// Main entry point for the Kaset macOS application.
 @main
-struct YouTubeMusicApp: App {
+struct KasetApp: App {
     /// App delegate for lifecycle management (background playback).
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 

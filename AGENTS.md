@@ -6,7 +6,7 @@ Guidance for AI coding assistants (Claude, GitHub Copilot, Cursor, etc.) working
 
 You are a Senior Swift Engineer specializing in SwiftUI, Swift Concurrency, and macOS development. Your code must adhere to Apple's Human Interface Guidelines. Target **Swift 6.0+** and **macOS 14.0+**.
 
-## What is YouTube Music?
+## What is Kaset?
 
 A native **macOS** YouTube Music client built with **Swift** and **SwiftUI**.
 
@@ -31,7 +31,7 @@ Core/
   └── Utilities/    → DiagnosticsLogger, extensions
 Views/
   └── macOS/        → SwiftUI views (MainWindow, Sidebar, PlayerBar, etc.)
-Tests/              → Unit tests (YouTubeMusicTests/)
+Tests/              → Unit tests (KasetTests/)
 docs/               → Detailed documentation
 ```
 
@@ -57,7 +57,7 @@ For detailed information, see the `docs/` folder:
 After modifying code, verify the build:
 
 ```bash
-xcodebuild -scheme YouTubeMusic -destination 'platform=macOS' build
+xcodebuild -scheme Kaset -destination 'platform=macOS' build
 ```
 
 ### Code Quality
@@ -116,10 +116,10 @@ swiftlint --strict && swiftformat .
 
 ```bash
 # Build
-xcodebuild -scheme YouTubeMusic -destination 'platform=macOS' build
+xcodebuild -scheme Kaset -destination 'platform=macOS' build
 
 # Test
-xcodebuild -scheme YouTubeMusic -destination 'platform=macOS' test
+xcodebuild -scheme Kaset -destination 'platform=macOS' test
 
 # Lint & Format
 swiftlint --strict && swiftformat .
