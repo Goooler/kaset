@@ -6,11 +6,23 @@ import Foundation
 /// Enables dependency injection and mocking for tests.
 @MainActor
 protocol YTMusicClientProtocol: Sendable {
-    /// Fetches the home page content with all sections.
+    /// Fetches the home page content (initial sections only for fast display).
     func getHome() async throws -> HomeResponse
 
-    /// Fetches the explore page content with all sections.
+    /// Fetches the next batch of home sections via continuation.
+    func getHomeContinuation() async throws -> [HomeSection]?
+
+    /// Whether more home sections are available to load.
+    var hasMoreHomeSections: Bool { get }
+
+    /// Fetches the explore page content (initial sections only for fast display).
     func getExplore() async throws -> HomeResponse
+
+    /// Fetches the next batch of explore sections via continuation.
+    func getExploreContinuation() async throws -> [HomeSection]?
+
+    /// Whether more explore sections are available to load.
+    var hasMoreExploreSections: Bool { get }
 
     /// Searches for content.
     func search(query: String) async throws -> SearchResponse

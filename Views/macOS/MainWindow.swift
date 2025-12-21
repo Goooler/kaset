@@ -15,6 +15,14 @@ struct MainWindow: View {
     @State private var showLoginSheet = false
     @State private var ytMusicClient: YTMusicClient?
 
+    // MARK: - Cached ViewModels (persist across tab switches)
+
+    @State private var homeViewModel: HomeViewModel?
+    @State private var exploreViewModel: ExploreViewModel?
+    @State private var searchViewModel: SearchViewModel?
+    @State private var likedMusicViewModel: LikedMusicViewModel?
+    @State private var libraryViewModel: LibraryViewModel?
+
     /// Access to the app delegate for persistent WebView.
     private var appDelegate: AppDelegate? {
         NSApplication.shared.delegate as? AppDelegate
@@ -115,15 +123,25 @@ struct MainWindow: View {
             Group {
                 switch item {
                 case .home:
-                    HomeView(viewModel: HomeViewModel(client: client))
+                    if let vm = homeViewModel {
+                        HomeView(viewModel: vm)
+                    }
                 case .explore:
-                    ExploreView(viewModel: ExploreViewModel(client: client))
+                    if let vm = exploreViewModel {
+                        ExploreView(viewModel: vm)
+                    }
                 case .search:
-                    SearchView(viewModel: SearchViewModel(client: client))
+                    if let vm = searchViewModel {
+                        SearchView(viewModel: vm)
+                    }
                 case .likedMusic:
-                    LikedMusicView(viewModel: LikedMusicViewModel(client: client))
+                    if let vm = likedMusicViewModel {
+                        LikedMusicView(viewModel: vm)
+                    }
                 case .library:
-                    LibraryView(viewModel: LibraryViewModel(client: client))
+                    if let vm = libraryViewModel {
+                        LibraryView(viewModel: vm)
+                    }
                 case .none:
                     Text("Select an item from the sidebar")
                         .foregroundStyle(.secondary)
@@ -131,12 +149,14 @@ struct MainWindow: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // Lyrics sidebar (shown when toggled)
-            if playerService.showLyrics {
-                Divider()
-                LyricsView(client: client)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
-            }
+            // Lyrics sidebar - always in hierarchy for proper state updates on pushed views
+            Divider()
+                .opacity(playerService.showLyrics ? 1 : 0)
+
+            LyricsView(client: client)
+                .frame(width: playerService.showLyrics ? 280 : 0)
+                .opacity(playerService.showLyrics ? 1 : 0)
+                .clipped()
         }
         .animation(.easeInOut(duration: 0.2), value: playerService.showLyrics)
     }
@@ -164,10 +184,25 @@ struct MainWindow: View {
     // MARK: - Setup
 
     private func setupClient() {
-        ytMusicClient = YTMusicClient(
+        let client = YTMusicClient(
             authService: authService,
             webKitManager: webKitManager
         )
+        ytMusicClient = client
+
+        // Create view models once and cache them
+        let homeVM = HomeViewModel(client: client)
+        let exploreVM = ExploreViewModel(client: client)
+        homeViewModel = homeVM
+        exploreViewModel = exploreVM
+        searchViewModel = SearchViewModel(client: client)
+        likedMusicViewModel = LikedMusicViewModel(client: client)
+        libraryViewModel = LibraryViewModel(client: client)
+
+        // Start loading home content immediately (don't wait for view to appear)
+        Task {
+            await homeVM.load()
+        }
     }
 
     private func handleAuthStateChange(_ state: AuthService.State) {

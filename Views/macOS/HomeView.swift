@@ -12,7 +12,7 @@ struct HomeView: View {
             Group {
                 switch viewModel.loadingState {
                 case .idle, .loading:
-                    LoadingView("Loading your music...")
+                    HomeLoadingView()
                 case .loaded, .loadingMore:
                     contentView
                 case let .error(message):
@@ -27,9 +27,11 @@ struct HomeView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             PlayerBar()
         }
-        .task {
+        .onAppear {
             if viewModel.loadingState == .idle {
-                await viewModel.load()
+                Task {
+                    await viewModel.load()
+                }
             }
         }
         .refreshable {
@@ -42,8 +44,9 @@ struct HomeView: View {
     private var contentView: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 32) {
-                ForEach(viewModel.sections) { section in
+                ForEach(Array(viewModel.sections.enumerated()), id: \.element.id) { index, section in
                     sectionView(section)
+                        .staggeredAppearance(index: index)
                         .task {
                             await prefetchImagesAsync(for: section)
                         }

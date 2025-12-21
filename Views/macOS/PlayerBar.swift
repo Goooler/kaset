@@ -176,8 +176,9 @@ struct PlayerBar: View {
                 Image(systemName: "shuffle")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(playerService.shuffleEnabled ? .red : .primary.opacity(0.6))
+                    .contentTransition(.symbolEffect(.replace))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .accessibilityLabel("Shuffle")
             .accessibilityValue(playerService.shuffleEnabled ? "On" : "Off")
 
@@ -191,7 +192,7 @@ struct PlayerBar: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.primary)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .accessibilityLabel("Previous track")
 
             // Play/Pause
@@ -203,8 +204,9 @@ struct PlayerBar: View {
                 Image(systemName: playerService.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(.primary)
+                    .contentTransition(.symbolEffect(.replace))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .accessibilityLabel(playerService.isPlaying ? "Pause" : "Play")
 
             // Next
@@ -217,7 +219,7 @@ struct PlayerBar: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.primary)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .accessibilityLabel("Next track")
 
             // Repeat
@@ -227,8 +229,9 @@ struct PlayerBar: View {
                 Image(systemName: repeatIcon)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(playerService.repeatMode != .off ? .red : .primary.opacity(0.6))
+                    .contentTransition(.symbolEffect(.replace))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .accessibilityLabel("Repeat")
             .accessibilityValue(repeatAccessibilityValue)
         }
@@ -314,8 +317,10 @@ struct PlayerBar: View {
                     : "hand.thumbsdown")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(playerService.currentTrackLikeStatus == .dislike ? .red : .primary.opacity(0.6))
+                    .contentTransition(.symbolEffect(.replace))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
+            .symbolEffect(.bounce, value: playerService.currentTrackLikeStatus == .dislike)
             .accessibilityLabel("Dislike")
             .accessibilityValue(playerService.currentTrackLikeStatus == .dislike ? "Disliked" : "Not disliked")
             .disabled(playerService.currentTrack == nil)
@@ -329,15 +334,17 @@ struct PlayerBar: View {
                     : "hand.thumbsup")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(playerService.currentTrackLikeStatus == .like ? .red : .primary.opacity(0.6))
+                    .contentTransition(.symbolEffect(.replace))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
+            .symbolEffect(.bounce, value: playerService.currentTrackLikeStatus == .like)
             .accessibilityLabel("Like")
             .accessibilityValue(playerService.currentTrackLikeStatus == .like ? "Liked" : "Not liked")
             .disabled(playerService.currentTrack == nil)
 
             // Lyrics button
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(AppAnimation.standard) {
                     player.showLyrics.toggle()
                 }
             } label: {
@@ -345,7 +352,7 @@ struct PlayerBar: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(playerService.showLyrics ? .red : .primary.opacity(0.6))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .accessibilityLabel("Lyrics")
             .accessibilityValue(playerService.showLyrics ? "Showing" : "Hidden")
             .disabled(playerService.currentTrack == nil)

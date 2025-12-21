@@ -32,13 +32,11 @@ final class YTMusicClient: YTMusicClientProtocol {
 
     // MARK: - Public API Methods
 
-    /// Maximum number of continuations to fetch initially for faster perceived load.
-    private static let maxInitialContinuations = 3
-
     /// Maximum total continuations to prevent infinite loops.
-    private static let maxTotalContinuations = 10
+    private static let maxTotalContinuations = 5
 
-    /// Fetches the home page content with all sections (including continuations).
+    /// Fetches the home page content (initial sections only for fast display).
+    /// Call `getHomeContinuation` to load additional sections progressively.
     func getHome() async throws -> HomeResponse {
         logger.info("Fetching home page")
 
@@ -47,90 +45,50 @@ final class YTMusicClient: YTMusicClientProtocol {
         ]
 
         let data = try await request("browse", body: body, ttl: APICache.TTL.home)
-        var response = HomeResponseParser.parse(data)
+        let response = HomeResponseParser.parse(data)
 
-        // Fetch limited continuations for faster initial load
-        var continuationToken = HomeResponseParser.extractContinuationToken(from: data)
-        var continuationCount = 0
+        // Store continuation token for progressive loading
+        let token = HomeResponseParser.extractContinuationToken(from: data)
+        _homeContinuationToken = token
 
-        while let token = continuationToken, continuationCount < Self.maxInitialContinuations {
-            continuationCount += 1
-            logger.info("Fetching home continuation \(continuationCount)")
-
-            do {
-                let continuationData = try await requestContinuation(token)
-                let additionalSections = HomeResponseParser.parseContinuation(continuationData)
-                response = HomeResponse(sections: response.sections + additionalSections)
-                continuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            } catch {
-                logger.warning("Failed to fetch continuation: \(error.localizedDescription)")
-                break
-            }
-        }
-
-        logger.info("Total home sections after initial continuations: \(response.sections.count)")
+        logger.info("Home page loaded: \(response.sections.count) initial sections, hasMore: \(token != nil)")
         return response
     }
 
-    /// Fetches additional home sections via continuation.
-    /// Call this to progressively load more content after initial load.
-    /// - Parameter currentSections: The current sections to append to
-    /// - Returns: Updated HomeResponse with additional sections, or nil if no more available
-    func getHomeMore(after currentSections: [HomeSection]) async throws -> HomeResponse? {
-        logger.info("Fetching more home sections")
+    /// Internal storage for continuation token (reset on each getHome call).
+    private var _homeContinuationToken: String?
 
-        // We need to refetch and skip to the continuation point
-        // This is a simplified approach - in production, you'd cache the continuation token
-        let body: [String: Any] = [
-            "browseId": "FEmusic_home",
-        ]
-
-        let data = try await request("browse", body: body, ttl: APICache.TTL.home)
-        var token = HomeResponseParser.extractContinuationToken(from: data)
-
-        // Skip the continuations we already have (approximation based on section count)
-        var skipped = 0
-        let skipCount = max(0, Self.maxInitialContinuations)
-
-        while let currentToken = token, skipped < skipCount {
-            let continuationData = try await requestContinuation(currentToken)
-            token = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            skipped += 1
-        }
-
-        // Now fetch additional sections
-        guard let nextToken = token else {
-            logger.info("No more home continuations available")
+    /// Fetches the next batch of home sections via continuation.
+    /// Returns nil if no more sections are available.
+    func getHomeContinuation() async throws -> [HomeSection]? {
+        guard let token = _homeContinuationToken else {
+            logger.debug("No home continuation token available")
             return nil
         }
 
-        var additionalSections: [HomeSection] = []
-        var continuationToken: String? = nextToken
-        var continuationCount = 0
-        let maxAdditional = Self.maxTotalContinuations - Self.maxInitialContinuations
+        logger.info("Fetching home continuation")
 
-        while let currentToken = continuationToken, continuationCount < maxAdditional {
-            continuationCount += 1
-            logger.info("Fetching additional home continuation \(continuationCount)")
+        do {
+            let continuationData = try await requestContinuation(token)
+            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
+            _homeContinuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
+            let hasMore = _homeContinuationToken != nil
 
-            do {
-                let continuationData = try await requestContinuation(currentToken)
-                let sections = HomeResponseParser.parseContinuation(continuationData)
-                additionalSections.append(contentsOf: sections)
-                continuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            } catch {
-                logger.warning("Failed to fetch additional continuation: \(error.localizedDescription)")
-                break
-            }
+            logger.info("Home continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
+            return additionalSections
+        } catch {
+            logger.warning("Failed to fetch home continuation: \(error.localizedDescription)")
+            _homeContinuationToken = nil
+            throw error
         }
-
-        guard !additionalSections.isEmpty else { return nil }
-
-        logger.info("Fetched \(additionalSections.count) additional home sections")
-        return HomeResponse(sections: currentSections + additionalSections)
     }
 
-    /// Fetches the explore page content with all sections.
+    /// Whether more home sections are available to load.
+    var hasMoreHomeSections: Bool {
+        _homeContinuationToken != nil
+    }
+
+    /// Fetches the explore page content (initial sections only for fast display).
     func getExplore() async throws -> HomeResponse {
         logger.info("Fetching explore page")
 
@@ -139,29 +97,46 @@ final class YTMusicClient: YTMusicClientProtocol {
         ]
 
         let data = try await request("browse", body: body, ttl: APICache.TTL.home)
-        var response = HomeResponseParser.parse(data)
+        let response = HomeResponseParser.parse(data)
 
-        // Fetch limited continuations for faster initial load
-        var continuationToken = HomeResponseParser.extractContinuationToken(from: data)
-        var continuationCount = 0
+        // Store continuation token for progressive loading
+        let token = HomeResponseParser.extractContinuationToken(from: data)
+        _exploreContinuationToken = token
 
-        while let token = continuationToken, continuationCount < Self.maxInitialContinuations {
-            continuationCount += 1
-            logger.info("Fetching explore continuation \(continuationCount)")
+        logger.info("Explore page loaded: \(response.sections.count) initial sections, hasMore: \(token != nil)")
+        return response
+    }
 
-            do {
-                let continuationData = try await requestContinuation(token)
-                let additionalSections = HomeResponseParser.parseContinuation(continuationData)
-                response = HomeResponse(sections: response.sections + additionalSections)
-                continuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            } catch {
-                logger.warning("Failed to fetch continuation: \(error.localizedDescription)")
-                break
-            }
+    /// Internal storage for explore continuation token.
+    private var _exploreContinuationToken: String?
+
+    /// Fetches the next batch of explore sections via continuation.
+    func getExploreContinuation() async throws -> [HomeSection]? {
+        guard let token = _exploreContinuationToken else {
+            logger.debug("No explore continuation token available")
+            return nil
         }
 
-        logger.info("Total explore sections after initial continuations: \(response.sections.count)")
-        return response
+        logger.info("Fetching explore continuation")
+
+        do {
+            let continuationData = try await requestContinuation(token)
+            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
+            _exploreContinuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
+            let hasMore = _exploreContinuationToken != nil
+
+            logger.info("Explore continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
+            return additionalSections
+        } catch {
+            logger.warning("Failed to fetch explore continuation: \(error.localizedDescription)")
+            _exploreContinuationToken = nil
+            throw error
+        }
+    }
+
+    /// Whether more explore sections are available to load.
+    var hasMoreExploreSections: Bool {
+        _exploreContinuationToken != nil
     }
 
     /// Makes a continuation request.

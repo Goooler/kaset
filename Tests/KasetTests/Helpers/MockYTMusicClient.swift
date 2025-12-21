@@ -7,7 +7,9 @@ final class MockYTMusicClient: YTMusicClientProtocol {
     // MARK: - Response Stubs
 
     var homeResponse: HomeResponse = .init(sections: [])
+    var homeContinuationSections: [[HomeSection]] = []
     var exploreResponse: HomeResponse = .init(sections: [])
+    var exploreContinuationSections: [[HomeSection]] = []
     var searchResponse: SearchResponse = .empty
     var libraryPlaylists: [Playlist] = []
     var likedSongs: [Song] = []
@@ -16,12 +18,29 @@ final class MockYTMusicClient: YTMusicClientProtocol {
     var artistSongs: [String: [Song]] = [:]
     var lyricsResponses: [String: Lyrics] = [:]
 
+    // MARK: - Continuation State
+
+    private var _homeContinuationIndex = 0
+    private var _exploreContinuationIndex = 0
+
+    var hasMoreHomeSections: Bool {
+        _homeContinuationIndex < homeContinuationSections.count
+    }
+
+    var hasMoreExploreSections: Bool {
+        _exploreContinuationIndex < exploreContinuationSections.count
+    }
+
     // MARK: - Call Tracking
 
     private(set) var getHomeCalled = false
     private(set) var getHomeCallCount = 0
+    private(set) var getHomeContinuationCalled = false
+    private(set) var getHomeContinuationCallCount = 0
     private(set) var getExploreCalled = false
     private(set) var getExploreCallCount = 0
+    private(set) var getExploreContinuationCalled = false
+    private(set) var getExploreContinuationCallCount = 0
     private(set) var searchCalled = false
     private(set) var searchQueries: [String] = []
     private(set) var getLibraryPlaylistsCalled = false
@@ -57,15 +76,41 @@ final class MockYTMusicClient: YTMusicClientProtocol {
     func getHome() async throws -> HomeResponse {
         getHomeCalled = true
         getHomeCallCount += 1
+        _homeContinuationIndex = 0
         if let error = shouldThrowError { throw error }
         return homeResponse
+    }
+
+    func getHomeContinuation() async throws -> [HomeSection]? {
+        getHomeContinuationCalled = true
+        getHomeContinuationCallCount += 1
+        if let error = shouldThrowError { throw error }
+        guard _homeContinuationIndex < homeContinuationSections.count else {
+            return nil
+        }
+        let sections = homeContinuationSections[_homeContinuationIndex]
+        _homeContinuationIndex += 1
+        return sections
     }
 
     func getExplore() async throws -> HomeResponse {
         getExploreCalled = true
         getExploreCallCount += 1
+        _exploreContinuationIndex = 0
         if let error = shouldThrowError { throw error }
         return exploreResponse
+    }
+
+    func getExploreContinuation() async throws -> [HomeSection]? {
+        getExploreContinuationCalled = true
+        getExploreContinuationCallCount += 1
+        if let error = shouldThrowError { throw error }
+        guard _exploreContinuationIndex < exploreContinuationSections.count else {
+            return nil
+        }
+        let sections = exploreContinuationSections[_exploreContinuationIndex]
+        _exploreContinuationIndex += 1
+        return sections
     }
 
     func search(query: String) async throws -> SearchResponse {
@@ -164,8 +209,14 @@ final class MockYTMusicClient: YTMusicClientProtocol {
     func reset() {
         getHomeCalled = false
         getHomeCallCount = 0
+        getHomeContinuationCalled = false
+        getHomeContinuationCallCount = 0
+        _homeContinuationIndex = 0
         getExploreCalled = false
         getExploreCallCount = 0
+        getExploreContinuationCalled = false
+        getExploreContinuationCallCount = 0
+        _exploreContinuationIndex = 0
         searchCalled = false
         searchQueries = []
         getLibraryPlaylistsCalled = false

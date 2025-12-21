@@ -13,6 +13,9 @@ struct HomeSectionItemCard: View {
     private static let cardWidth: CGFloat = 160
     private static let cardHeight: CGFloat = 160
 
+    /// Hover state for play overlay.
+    @State private var isHovering = false
+
     init(item: HomeSectionItem, rank: Int? = nil, action: @escaping () -> Void) {
         self.item = item
         self.rank = rank
@@ -27,7 +30,12 @@ struct HomeSectionItemCard: View {
                 regularContent
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.interactiveCard)
+        .onHover { hovering in
+            withAnimation(AppAnimation.quick) {
+                isHovering = hovering
+            }
+        }
     }
 
     // MARK: - Regular Card Content
@@ -61,21 +69,37 @@ struct HomeSectionItemCard: View {
     // MARK: - Shared Components
 
     private var thumbnail: some View {
-        CachedAsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-        } placeholder: {
-            Rectangle()
-                .fill(.quaternary)
-                .overlay {
-                    Image(systemName: "music.note")
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary)
-                }
+        ZStack {
+            CachedAsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle()
+                    .fill(.quaternary)
+                    .overlay {
+                        Image(systemName: "music.note")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+                    }
+            }
+            .frame(width: Self.cardWidth, height: Self.cardHeight)
+            .clipShape(.rect(cornerRadius: 8))
+
+            // Play overlay on hover (for songs)
+            if case .song = item, isHovering {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 48, height: 48)
+                    .overlay {
+                        Image(systemName: "play.fill")
+                            .font(.title2)
+                            .foregroundStyle(.primary)
+                            .offset(x: 2)
+                    }
+                    .transition(.scale.combined(with: .opacity))
+            }
         }
-        .frame(width: Self.cardWidth, height: Self.cardHeight)
-        .clipShape(.rect(cornerRadius: 8))
     }
 
     private var titleAndSubtitle: some View {

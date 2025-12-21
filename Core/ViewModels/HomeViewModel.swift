@@ -22,6 +22,12 @@ final class HomeViewModel {
     /// Task for background loading of additional sections.
     private var backgroundLoadTask: Task<Void, Never>?
 
+    /// Number of background continuations loaded.
+    private var continuationsLoaded = 0
+
+    /// Maximum continuations to load in background.
+    private static let maxContinuations = 4
+
     init(client: any YTMusicClientProtocol) {
         self.client = client
     }
@@ -36,7 +42,9 @@ final class HomeViewModel {
         do {
             let response = try await client.getHome()
             sections = response.sections
+            hasMoreSections = client.hasMoreHomeSections
             loadingState = .loaded
+            continuationsLoaded = 0
             let sectionCount = sections.count
             logger.info("Home content loaded: \(sectionCount) sections")
 
@@ -52,30 +60,48 @@ final class HomeViewModel {
         }
     }
 
-    /// Loads more sections in the background.
+    /// Loads more sections in the background progressively.
     private func startBackgroundLoading() {
         backgroundLoadTask?.cancel()
-        backgroundLoadTask = Task.detached(priority: .utility) { [weak self] in
+        backgroundLoadTask = Task { [weak self] in
             guard let self else { return }
 
-            // Wait a bit to let the UI settle
-            try? await Task.sleep(for: .seconds(1))
+            // Brief delay to let the UI settle
+            try? await Task.sleep(for: .milliseconds(300))
 
             guard !Task.isCancelled else { return }
 
-            await loadMoreSections()
+            await self.loadMoreSections()
         }
     }
 
-    /// Loads additional sections from continuations.
+    /// Loads additional sections from continuations progressively.
     private func loadMoreSections() async {
-        guard hasMoreSections, loadingState == .loaded else { return }
+        while hasMoreSections, continuationsLoaded < Self.maxContinuations {
+            guard loadingState == .loaded else { break }
 
-        // Note: This requires the client to support getHomeMore
-        // For now, we mark as no more sections since the basic protocol doesn't have this method
-        // The optimization is in reducing initial continuations from 10 to 3
-        hasMoreSections = false
-        logger.info("Background section loading completed")
+            do {
+                if let additionalSections = try await client.getHomeContinuation() {
+                    sections.append(contentsOf: additionalSections)
+                    continuationsLoaded += 1
+                    hasMoreSections = client.hasMoreHomeSections
+                    let continuationNum = continuationsLoaded
+                    logger.info("Background loaded \(additionalSections.count) more sections (continuation \(continuationNum))")
+                } else {
+                    hasMoreSections = false
+                    break
+                }
+            } catch is CancellationError {
+                logger.debug("Background loading cancelled")
+                break
+            } catch {
+                logger.warning("Background section load failed: \(error.localizedDescription)")
+                break
+            }
+        }
+
+        let totalCount = sections.count
+        logger.info("Background section loading completed, total sections: \(totalCount)")
     }
 
     /// Refreshes home content.
@@ -83,6 +109,7 @@ final class HomeViewModel {
         backgroundLoadTask?.cancel()
         sections = []
         hasMoreSections = true
+        continuationsLoaded = 0
         await load()
     }
 }

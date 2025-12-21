@@ -90,6 +90,7 @@ struct PlaylistDetailView: View {
             }
             .frame(width: 180, height: 180)
             .clipShape(.rect(cornerRadius: 8))
+            .fadeIn(duration: 0.3)
 
             // Info
             VStack(alignment: .leading, spacing: 8) {
@@ -172,11 +173,17 @@ struct PlaylistDetailView: View {
             playTrackInQueue(tracks: tracks, startingAt: index)
         } label: {
             HStack(spacing: 12) {
-                // Index - use monospaced digits for alignment (display is 1-based)
-                Text("\(index + 1)")
-                    .font(.system(size: 14, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 28, alignment: .trailing)
+                // Now playing indicator or index
+                Group {
+                    if playerService.currentTrack?.videoId == track.videoId {
+                        NowPlayingIndicator(isPlaying: playerService.isPlaying, size: 14)
+                    } else {
+                        Text("\(index + 1)")
+                            .font(.system(size: 14, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 28, alignment: .trailing)
 
                 // Thumbnail - only show for playlists (different album art per track)
                 // Albums share the same artwork, so we hide per-track thumbnails
@@ -197,7 +204,7 @@ struct PlaylistDetailView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.title)
                         .font(.system(size: 14))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(playerService.currentTrack?.videoId == track.videoId ? .red : .primary)
                         .lineLimit(1)
 
                     Text(track.artistsDisplay)
@@ -217,7 +224,8 @@ struct PlaylistDetailView: View {
             .padding(.horizontal, 4)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.interactiveRow(cornerRadius: 6))
+        .staggeredAppearance(index: min(index, 10))
         .contextMenu {
             Button {
                 playTrackInQueue(tracks: tracks, startingAt: index)

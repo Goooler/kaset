@@ -3,17 +3,26 @@ import SwiftUI
 // MARK: - CachedAsyncImage
 
 /// A cached version of AsyncImage that uses ImageCache.
+/// Includes a smooth crossfade transition when the image loads.
 struct CachedAsyncImage<Content: View, Placeholder: View>: View {
     let url: URL?
     @ViewBuilder let content: (Image) -> Content
     @ViewBuilder let placeholder: () -> Placeholder
 
     @State private var image: NSImage?
+    @State private var isLoaded = false
+
+    /// Whether to animate the image appearance.
+    private var shouldAnimate: Bool {
+        !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
 
     var body: some View {
-        Group {
+        ZStack {
             if let image {
                 content(Image(nsImage: image))
+                    .opacity(isLoaded ? 1 : 0)
+                    .animation(shouldAnimate ? .easeIn(duration: 0.25) : nil, value: isLoaded)
             } else {
                 placeholder()
             }
@@ -21,6 +30,7 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
         .task(id: url) {
             guard let url else { return }
             image = await ImageCache.shared.image(for: url)
+            isLoaded = true
         }
     }
 }

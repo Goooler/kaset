@@ -85,6 +85,10 @@ struct LoginSheet: View {
         try? await Task.sleep(for: .milliseconds(300))
 
         if let sapisid = await webKitManager.getSAPISID() {
+            // Force backup cookies to Keychain immediately after login
+            // This ensures persistence across app restarts even if WebKit loses data
+            await webKitManager.forceBackupCookies()
+
             authService.completeLogin(sapisid: sapisid)
             pollTask?.cancel()
             dismiss()

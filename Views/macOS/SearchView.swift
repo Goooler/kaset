@@ -102,7 +102,9 @@ struct SearchView: View {
 
     private func filterChip(_ filter: SearchViewModel.SearchFilter) -> some View {
         Button {
-            viewModel.selectedFilter = filter
+            withAnimation(AppAnimation.spring) {
+                viewModel.selectedFilter = filter
+            }
         } label: {
             Text(filter.rawValue)
                 .font(.system(size: 12, weight: .medium))
@@ -112,7 +114,7 @@ struct SearchView: View {
                 .foregroundStyle(viewModel.selectedFilter == filter ? .white : .primary)
                 .clipShape(.capsule)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.chip(isSelected: viewModel.selectedFilter == filter))
     }
 
     // MARK: - Content
@@ -174,8 +176,8 @@ struct SearchView: View {
     private var resultsView: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(viewModel.filteredItems) { item in
-                    resultRow(item)
+                ForEach(Array(viewModel.filteredItems.enumerated()), id: \.element.id) { index, item in
+                    resultRow(item, index: index)
                     Divider()
                         .padding(.leading, 72)
                 }
@@ -184,7 +186,7 @@ struct SearchView: View {
         }
     }
 
-    private func resultRow(_ item: SearchResultItem) -> some View {
+    private func resultRow(_ item: SearchResultItem, index: Int) -> some View {
         Button {
             handleItemTap(item)
         } label: {
@@ -242,7 +244,8 @@ struct SearchView: View {
             .padding(.vertical, 8)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.interactiveRow(cornerRadius: 6))
+        .staggeredAppearance(index: min(index, 10))
         .contextMenu {
             contextMenuItems(for: item)
         }

@@ -21,8 +21,8 @@ struct LyricsView: View {
             // Content
             contentView
         }
-        .frame(width: 280)
-        .background(.ultraThinMaterial)
+        .frame(minWidth: 280, maxWidth: 280)
+        .background(.background.opacity(0.95))
         .onChange(of: playerService.currentTrack?.videoId) { _, newVideoId in
             if let videoId = newVideoId, videoId != lastLoadedVideoId {
                 Task {

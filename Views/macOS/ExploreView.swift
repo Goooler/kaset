@@ -27,9 +27,11 @@ struct ExploreView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             PlayerBar()
         }
-        .task {
+        .onAppear {
             if viewModel.loadingState == .idle {
-                await viewModel.load()
+                Task {
+                    await viewModel.load()
+                }
             }
         }
         .refreshable {

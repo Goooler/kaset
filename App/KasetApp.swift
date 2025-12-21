@@ -158,6 +158,16 @@ struct KasetApp: App {
                     playerService.cycleRepeatMode()
                 }
                 .keyboardShortcut("r", modifiers: .command)
+
+                Divider()
+
+                // Lyrics - ⌘L
+                Button(playerService.showLyrics ? "Hide Lyrics" : "Show Lyrics") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        playerService.showLyrics.toggle()
+                    }
+                }
+                .keyboardShortcut("l", modifiers: .command)
             }
 
             // Navigation commands - replace default sidebar toggle

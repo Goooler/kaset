@@ -1,6 +1,137 @@
 import Foundation
 import os
+import Security
 import WebKit
+
+// MARK: - CookieBackupManager
+
+/// Manages backup storage of auth cookies in Keychain for resilience against WebKit data loss.
+enum CookieBackupManager {
+    private static let service = "com.sertacozercan.Kaset.cookies"
+    private static let account = "youtube-auth-cookies"
+    private static let logger = DiagnosticsLogger.webKit
+
+    /// Saves YouTube auth cookies to Keychain as a backup.
+    static func backupCookies(_ cookies: [HTTPCookie]) {
+        // Filter to only YouTube auth cookies
+        let authCookieNames = Set([
+            "SAPISID", "__Secure-3PAPISID", "__Secure-1PAPISID",
+            "SID", "HSID", "SSID", "APISID",
+        ])
+        let authCookies = cookies.filter { authCookieNames.contains($0.name) }
+
+        guard !authCookies.isEmpty else { return }
+
+        // Use NSKeyedArchiver since cookie properties contain Date objects
+        // that can't be serialized with JSONSerialization
+        let cookieData = authCookies.compactMap { cookie -> Data? in
+            guard let properties = cookie.properties else { return nil }
+            // Convert to [String: Any] for archiving
+            var stringProperties: [String: Any] = [:]
+            for (key, value) in properties {
+                stringProperties[key.rawValue] = value
+            }
+            return try? NSKeyedArchiver.archivedData(
+                withRootObject: stringProperties,
+                requiringSecureCoding: false
+            )
+        }
+
+        guard let data = try? NSKeyedArchiver.archivedData(
+            withRootObject: cookieData,
+            requiringSecureCoding: false
+        ) else {
+            logger.error("Failed to serialize cookies for backup")
+            return
+        }
+
+        // Delete existing item first
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+        SecItemDelete(deleteQuery as CFDictionary)
+
+        // Add new item
+        let addQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+        ]
+
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        if status == errSecSuccess {
+            logger.info("Backed up \(authCookies.count) auth cookies to Keychain")
+        } else {
+            logger.error("Failed to backup cookies to Keychain: \(status)")
+        }
+    }
+
+    /// Restores YouTube auth cookies from Keychain backup.
+    /// Returns the cookies if found, nil otherwise.
+    static func restoreCookies() -> [HTTPCookie]? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecItemNotFound {
+            logger.info("No cookie backup found in Keychain (first run or cleared)")
+            return nil
+        }
+
+        guard status == errSecSuccess,
+              let data = result as? Data,
+              let cookieDataArray = try? NSKeyedUnarchiver.unarchivedObject(
+                  ofClasses: [NSArray.self, NSData.self],
+                  from: data
+              ) as? [Data]
+        else {
+            logger.error("Failed to read cookie backup from Keychain: status=\(status)")
+            return nil
+        }
+
+        let cookies = cookieDataArray.compactMap { cookieData -> HTTPCookie? in
+            guard let stringProperties = try? NSKeyedUnarchiver.unarchivedObject(
+                ofClasses: [NSDictionary.self, NSString.self, NSDate.self, NSNumber.self],
+                from: cookieData
+            ) as? [String: Any] else {
+                return nil
+            }
+
+            // Convert string keys back to HTTPCookiePropertyKey
+            var convertedProperties: [HTTPCookiePropertyKey: Any] = [:]
+            for (key, value) in stringProperties {
+                convertedProperties[HTTPCookiePropertyKey(key)] = value
+            }
+            return HTTPCookie(properties: convertedProperties)
+        }
+
+        if !cookies.isEmpty {
+            logger.info("Restored \(cookies.count) auth cookies from Keychain backup")
+        }
+        return cookies.isEmpty ? nil : cookies
+    }
+
+    /// Clears the cookie backup from Keychain.
+    static func clearBackup() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+        SecItemDelete(query as CFDictionary)
+        logger.info("Cleared cookie backup from Keychain")
+    }
+}
 
 // MARK: - WebKitManager
 
@@ -47,8 +178,18 @@ final class WebKitManager: NSObject {
         // Force cookie store to load by accessing it
         // This helps with lazy-loading issues on cold start
         Task {
-            let cookies = await dataStore.httpCookieStore.allCookies()
+            var cookies = await dataStore.httpCookieStore.allCookies()
             logger.info("WebKitManager initialized - loaded \(cookies.count) cookies from persistent store")
+
+            // If WebKit lost cookies, try to restore from Keychain backup
+            if cookies.isEmpty, let backupCookies = CookieBackupManager.restoreCookies() {
+                logger.info("Restoring \(backupCookies.count) cookies from Keychain backup")
+                for cookie in backupCookies {
+                    await dataStore.httpCookieStore.setCookie(cookie)
+                }
+                cookies = await dataStore.httpCookieStore.allCookies()
+                logger.info("After restore: \(cookies.count) cookies in store")
+            }
         }
 
         logger.info("WebKitManager initialized with persistent data store")
@@ -170,17 +311,60 @@ final class WebKitManager: NSObject {
 
         await dataStore.removeData(ofTypes: allTypes, modifiedSince: dateFrom)
 
+        // Also clear the Keychain backup
+        CookieBackupManager.clearBackup()
+
         logger.info("WebKit data cleared successfully")
+    }
+
+    /// Forces an immediate backup of all YouTube/Google cookies to Keychain.
+    /// Call this after successful login to ensure cookies are persisted.
+    func forceBackupCookies() async {
+        let cookies = await dataStore.httpCookieStore.allCookies()
+        logger.info("Force backup: found \(cookies.count) total cookies")
+
+        // Filter for YouTube/Google auth cookies
+        let authCookies = cookies.filter { cookie in
+            let domain = cookie.domain.lowercased()
+            return domain.hasSuffix("youtube.com") ||
+                domain.hasSuffix("google.com") ||
+                domain == ".youtube.com" ||
+                domain == ".google.com"
+        }
+
+        logger.info("Force backup: \(authCookies.count) YouTube/Google cookies to backup")
+        if !authCookies.isEmpty {
+            CookieBackupManager.backupCookies(authCookies)
+        }
     }
 }
 
 // MARK: WKHTTPCookieStoreObserver
 
 extension WebKitManager: WKHTTPCookieStoreObserver {
-    nonisolated func cookiesDidChange(in _: WKHTTPCookieStore) {
+    nonisolated func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
         Task { @MainActor in
             self.cookiesDidChange = Date()
             logger.debug("Cookies changed at \(self.cookiesDidChange)")
+
+            // Backup cookies to Keychain whenever they change
+            let cookies = await cookieStore.allCookies()
+            logger.debug("Cookie change detected - total cookies: \(cookies.count)")
+
+            // Filter for YouTube/Google auth cookies
+            let authCookies = cookies.filter { cookie in
+                let domain = cookie.domain.lowercased()
+                // Match youtube.com, .youtube.com, google.com, .google.com
+                return domain.hasSuffix("youtube.com") ||
+                    domain.hasSuffix("google.com") ||
+                    domain == ".youtube.com" ||
+                    domain == ".google.com"
+            }
+
+            logger.debug("Found \(authCookies.count) YouTube/Google cookies")
+            if !authCookies.isEmpty {
+                CookieBackupManager.backupCookies(authCookies)
+            }
         }
     }
 }
