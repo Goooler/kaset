@@ -183,12 +183,36 @@ GlassEffectContainer(spacing: 0) {
 # Build
 xcodebuild -scheme Kaset -destination 'platform=macOS' build
 
-# Test
-xcodebuild -scheme Kaset -destination 'platform=macOS' test
+# Unit Tests (run separately from UI tests)
+xcodebuild -scheme Kaset -destination 'platform=macOS' test -only-testing:KasetTests
 
 # Lint & Format
 swiftlint --strict && swiftformat .
 ```
+
+### Test Execution Rules
+
+> ⚠️ **NEVER run unit tests and UI tests together** — Always execute them separately.
+
+**Unit Tests (`KasetTests`)**:
+```bash
+xcodebuild -scheme Kaset -destination 'platform=macOS' test -only-testing:KasetTests
+```
+
+**UI Tests (`KasetUITests`)** — Run ONE test at a time:
+```bash
+# Run a single UI test
+xcodebuild -scheme Kaset -destination 'platform=macOS' test \
+  -only-testing:KasetUITests/TestClassName/testMethodName
+```
+
+**UI Test Workflow**:
+1. Run ONE UI test at a time
+2. If it fails, fix the issue before proceeding
+3. Verify the fix by re-running that specific test
+4. Only move to the next UI test after the current one passes
+
+This prevents cascading failures and makes debugging significantly easier.
 
 ### Playback Architecture
 
