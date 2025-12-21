@@ -65,13 +65,13 @@ struct PlayerBar: View {
 
     private var centerSection: some View {
         ZStack {
-            // Track info (blurred when hovering)
+            // Track info (blurred when hovering and track is playing)
             trackInfoView
-                .blur(radius: isHovering ? 8 : 0)
-                .opacity(isHovering ? 0 : 1)
+                .blur(radius: isHovering && playerService.currentTrack != nil ? 8 : 0)
+                .opacity(isHovering && playerService.currentTrack != nil ? 0 : 1)
 
-            // Seek bar (shown when hovering)
-            if isHovering {
+            // Seek bar (shown when hovering and track is playing)
+            if isHovering, playerService.currentTrack != nil {
                 seekBarView
                     .transition(.opacity)
             }
@@ -92,8 +92,7 @@ struct PlayerBar: View {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(.quaternary)
                     .overlay {
-                        Image(systemName: "music.note")
-                            .font(.system(size: 12))
+                        CassetteIcon(size: 20)
                             .foregroundStyle(.secondary)
                     }
             }
@@ -277,19 +276,26 @@ struct PlayerBar: View {
                 .foregroundStyle(.primary.opacity(0.6))
                 .frame(width: 16)
 
-            // Volume slider with debounced updates
-            Slider(value: $volumeValue, in: 0 ... 1)
-                .frame(width: 80)
-                .controlSize(.small)
-                .onChange(of: volumeValue) { _, _ in
+            // Volume slider with immediate updates
+            Slider(value: $volumeValue, in: 0 ... 1) { editing in
+                if editing {
+                    // User started dragging
                     isAdjustingVolume = true
+                } else {
+                    // User finished dragging - apply volume change
+                    performVolumeChange()
                 }
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 0)
-                        .onEnded { _ in
-                            performVolumeChange()
-                        }
-                )
+            }
+            .frame(width: 80)
+            .controlSize(.small)
+            .onChange(of: volumeValue) { _, newValue in
+                // Apply volume changes in real-time during dragging for immediate feedback
+                if isAdjustingVolume {
+                    Task {
+                        await playerService.setVolume(newValue)
+                    }
+                }
+            }
         }
     }
 
