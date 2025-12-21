@@ -31,6 +31,9 @@ final class APICache {
         static let playlist: TimeInterval = 30 * 60 // 30 minutes
         static let artist: TimeInterval = 60 * 60 // 1 hour
         static let search: TimeInterval = 2 * 60 // 2 minutes
+        static let library: TimeInterval = 5 * 60 // 5 minutes
+        static let lyrics: TimeInterval = 24 * 60 * 60 // 24 hours
+        static let songMetadata: TimeInterval = 30 * 60 // 30 minutes
     }
 
     /// Maximum number of cached entries before LRU eviction kicks in.

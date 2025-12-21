@@ -194,7 +194,7 @@ final class YTMusicClient: YTMusicClientProtocol {
             "browseId": "FEmusic_liked_playlists",
         ]
 
-        let data = try await request("browse", body: body)
+        let data = try await request("browse", body: body, ttl: APICache.TTL.library)
         let playlists = PlaylistParser.parseLibraryPlaylists(data)
         logger.info("Parsed \(playlists.count) library playlists")
         return playlists
@@ -208,7 +208,7 @@ final class YTMusicClient: YTMusicClientProtocol {
             "browseId": "FEmusic_liked_videos",
         ]
 
-        let data = try await request("browse", body: body)
+        let data = try await request("browse", body: body, ttl: APICache.TTL.library)
         let detail = PlaylistParser.parsePlaylistDetail(data, playlistId: "LM")
         logger.info("Parsed \(detail.tracks.count) liked songs")
         return detail.tracks
@@ -312,7 +312,7 @@ final class YTMusicClient: YTMusicClientProtocol {
             "browseId": lyricsBrowseId,
         ]
 
-        let browseData = try await request("browse", body: browseBody)
+        let browseData = try await request("browse", body: browseBody, ttl: APICache.TTL.lyrics)
         let lyrics = parseLyrics(from: browseData)
         logger.info("Fetched lyrics for \(videoId): \(lyrics.isAvailable ? "available" : "unavailable")")
         return lyrics
@@ -406,7 +406,7 @@ final class YTMusicClient: YTMusicClientProtocol {
             "tunerSettingValue": "AUTOMIX_SETTING_NORMAL",
         ]
 
-        let data = try await request("next", body: body)
+        let data = try await request("next", body: body, ttl: APICache.TTL.songMetadata)
         return try parseSongMetadata(data, videoId: videoId)
     }
 
@@ -637,6 +637,8 @@ final class YTMusicClient: YTMusicClientProtocol {
 
         // Invalidate liked playlist cache so UI updates immediately
         APICache.shared.invalidate(matching: "browse:")
+        // Invalidate song metadata cache (next: endpoint)
+        APICache.shared.invalidate(matching: "next:")
     }
 
     /// Adds or removes a song from the user's library.
@@ -655,6 +657,10 @@ final class YTMusicClient: YTMusicClientProtocol {
 
         _ = try await request("feedback", body: body)
         logger.info("Successfully edited library status")
+
+        // Invalidate library and song metadata cache so UI updates
+        APICache.shared.invalidate(matching: "browse:")
+        APICache.shared.invalidate(matching: "next:")
     }
 
     /// Adds a playlist to the user's library using the like/like endpoint.

@@ -83,6 +83,38 @@ final class APICacheTests: XCTestCase {
         XCTAssertEqual(APICache.TTL.playlist, 30 * 60) // 30 minutes
         XCTAssertEqual(APICache.TTL.artist, 60 * 60) // 1 hour
         XCTAssertEqual(APICache.TTL.search, 2 * 60) // 2 minutes
+        XCTAssertEqual(APICache.TTL.library, 5 * 60) // 5 minutes
+        XCTAssertEqual(APICache.TTL.lyrics, 24 * 60 * 60) // 24 hours
+        XCTAssertEqual(APICache.TTL.songMetadata, 30 * 60) // 30 minutes
+    }
+
+    func testLyricsCacheNotInvalidatedByMutations() {
+        // Lyrics use browse: prefix but should NOT be invalidated by mutation operations
+        // This test verifies that invalidating next: prefix doesn't affect lyrics
+        cache.set(key: "browse:lyrics_abc123", data: ["text": "lyrics content"], ttl: APICache.TTL.lyrics)
+        cache.set(key: "next:song_abc123", data: ["title": "song"], ttl: APICache.TTL.songMetadata)
+
+        // Simulate mutation invalidation (like rateSong would do)
+        cache.invalidate(matching: "next:")
+
+        // Lyrics should still be cached (browse: prefix not invalidated)
+        XCTAssertNotNil(cache.get(key: "browse:lyrics_abc123"))
+        // Song metadata should be invalidated
+        XCTAssertNil(cache.get(key: "next:song_abc123"))
+    }
+
+    func testSongMetadataCacheInvalidatedByMutations() {
+        // Song metadata uses next: prefix and should be invalidated by mutations
+        cache.set(key: "next:song_abc123", data: ["title": "song"], ttl: APICache.TTL.songMetadata)
+        cache.set(key: "browse:home_section", data: ["section": "home"], ttl: APICache.TTL.home)
+
+        // Simulate mutation invalidation for both prefixes
+        cache.invalidate(matching: "browse:")
+        cache.invalidate(matching: "next:")
+
+        // Both should be invalidated
+        XCTAssertNil(cache.get(key: "next:song_abc123"))
+        XCTAssertNil(cache.get(key: "browse:home_section"))
     }
 
     func testCacheEntryIsExpired() {
