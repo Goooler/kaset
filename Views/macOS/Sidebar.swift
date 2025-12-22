@@ -18,15 +18,15 @@ struct Sidebar: View {
                     Label("Home", systemImage: "house")
                 }
                 .accessibilityIdentifier(AccessibilityID.Sidebar.homeItem)
-
-                NavigationLink(value: NavigationItem.explore) {
-                    Label("Explore", systemImage: "globe")
-                }
-                .accessibilityIdentifier(AccessibilityID.Sidebar.exploreItem)
             }
 
             // Discover section
             Section("Discover") {
+                NavigationLink(value: NavigationItem.explore) {
+                    Label("Explore", systemImage: "globe")
+                }
+                .accessibilityIdentifier(AccessibilityID.Sidebar.exploreItem)
+
                 NavigationLink(value: NavigationItem.charts) {
                     Label("Charts", systemImage: "chart.line.uptrend.xyaxis")
                 }

@@ -172,6 +172,24 @@ actor ImageCache {
         try? self.fileManager.createDirectory(at: self.diskCacheURL, withIntermediateDirectories: true)
     }
 
+    /// Returns the total size of the disk cache in bytes.
+    func diskCacheSize() -> Int64 {
+        var totalSize: Int64 = 0
+        guard let enumerator = fileManager.enumerator(
+            at: diskCacheURL,
+            includingPropertiesForKeys: [.fileSizeKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return 0
+        }
+        for case let fileURL as URL in enumerator {
+            if let fileSize = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+                totalSize += Int64(fileSize)
+            }
+        }
+        return totalSize
+    }
+
     // MARK: - Disk Cache Helpers
 
     private func cacheKey(for url: URL) -> String {

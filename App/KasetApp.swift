@@ -62,7 +62,7 @@ struct KasetApp: App {
     @State private var searchFocusTrigger = false
 
     /// Current navigation selection for keyboard navigation.
-    @State private var navigationSelection: NavigationItem? = .home
+    @State private var navigationSelection: NavigationItem? = SettingsManager.shared.launchNavigationItem
 
     /// Whether the command bar is visible.
     @State private var showCommandBar = false
@@ -120,17 +120,9 @@ struct KasetApp: App {
 
         Settings {
             SettingsView()
+                .environment(self.authService)
         }
         .commands {
-            // App commands
-            CommandGroup(after: .appInfo) {
-                Button("Sign Out") {
-                    Task {
-                        await self.authService.signOut()
-                    }
-                }
-                .disabled(self.authService.state == .loggedOut)
-            }
 
             // Playback commands
             CommandMenu("Playback") {
@@ -274,11 +266,16 @@ struct KasetApp: App {
 struct SettingsView: View {
     var body: some View {
         TabView {
+            GeneralSettingsView()
+                .tabItem {
+                    Label("General", systemImage: "gearshape")
+                }
+
             IntelligenceSettingsView()
                 .tabItem {
                     Label("Intelligence", systemImage: "sparkles")
                 }
         }
-        .frame(width: 450, height: 350)
+        .frame(width: 450, height: 400)
     }
 }

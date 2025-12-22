@@ -38,6 +38,8 @@
 		573C716F5850DD371F47D095 /* MoodCategoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4BFFC86C639706F84922809 /* MoodCategoryViewModel.swift */; };
 		57F360B44102B28C4B273F9C /* ArtistDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D1A78D6AA4AB654E9663E2D /* ArtistDetail.swift */; };
 		5DDEBEE9D117E2738A675091 /* IntelligenceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CE90C8E602477823742B6E1 /* IntelligenceSettingsView.swift */; };
+		5DDEBEE9D117E2738A675092 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CE90C8E602477823742B6E2 /* GeneralSettingsView.swift */; };
+		5DDEBEE9D117E2738A675093 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CE90C8E602477823742B6E3 /* SettingsManager.swift */; };
 		6669FEB532F1B6E558EA1F5E /* IntelligenceModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04E21018BFEFD7B96F998F28 /* IntelligenceModifier.swift */; };
 		6914540425FDF2E50D1D3A76 /* PodcastsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E7A2E6D11700E99B04D6DFF /* PodcastsView.swift */; };
 		69379B5363A7AFFDD1A0B9AE /* ArtistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABDD39F01D95E657E26F9F05 /* ArtistDetailView.swift */; };
@@ -175,6 +177,8 @@
 /* Begin PBXFileReference section */
 		04E21018BFEFD7B96F998F28 /* IntelligenceModifier.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = IntelligenceModifier.swift; sourceTree = "<group>"; };
 		0CE90C8E602477823742B6E1 /* IntelligenceSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = IntelligenceSettingsView.swift; sourceTree = "<group>"; };
+		0CE90C8E602477823742B6E2 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
+		0CE90C8E602477823742B6E3 /* SettingsManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		19D652564736AB747CA0AC35 /* SearchSuggestionsParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SearchSuggestionsParserTests.swift; sourceTree = "<group>"; };
 		1D7DDDC369AB4D72D7306F02 /* SkeletonView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SkeletonView.swift; sourceTree = "<group>"; };
 		1E9D7950D7FAE88739595001 /* InteractiveCardStyle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InteractiveCardStyle.swift; sourceTree = "<group>"; };
@@ -564,6 +568,7 @@
 				E50000060000000000000024 /* WebKit */,
 				E50000020000000000000200 /* Protocols.swift */,
 				E50000020000000000000500 /* ErrorPresenter.swift */,
+				0CE90C8E602477823742B6E3 /* SettingsManager.swift */,
 				482F4F5494A32DF5BC8FB4E4 /* AI */,
 			);
 			path = Services;
@@ -682,6 +687,7 @@
 				01CA5C8085EDDF4F1A4CFE22 /* SharedViews */,
 				ACD98FCCD196FEFA93C2F3D2 /* CommandBarView.swift */,
 				0CE90C8E602477823742B6E1 /* IntelligenceSettingsView.swift */,
+				0CE90C8E602477823742B6E2 /* GeneralSettingsView.swift */,
 				7A40C879039FC38C73C120FC /* MoodCategoryDetailView.swift */,
 			);
 			path = macOS;
@@ -962,6 +968,8 @@
 				B3A3A2F8AD2C1E3CB4BF1AF4 /* LyricsSummary.swift in Sources */,
 				893FAE9DD3873EF800B84AD7 /* CommandBarView.swift in Sources */,
 				5DDEBEE9D117E2738A675091 /* IntelligenceSettingsView.swift in Sources */,
+				5DDEBEE9D117E2738A675092 /* GeneralSettingsView.swift in Sources */,
+				5DDEBEE9D117E2738A675093 /* SettingsManager.swift in Sources */,
 				6669FEB532F1B6E558EA1F5E /* IntelligenceModifier.swift in Sources */,
 				EBD8E2FD5FD9ACA330580345 /* ChartsViewModel.swift in Sources */,
 				6C2D2D574F9E7C378AC08E2F /* MoodsAndGenresViewModel.swift in Sources */,
