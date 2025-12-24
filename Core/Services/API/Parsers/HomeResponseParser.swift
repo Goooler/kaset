@@ -483,6 +483,39 @@ enum HomeResponseParser {
         return nil
     }
 
+    private enum BrowseItemType {
+        case album
+        case playlist
+        case artist
+    }
+
+    private static func determineBrowseItemType(browseId: String, pageType: String?) -> BrowseItemType? {
+        // Check pageType first (most reliable)
+        switch pageType {
+        case "MUSIC_PAGE_TYPE_ALBUM":
+            return .album
+        case "MUSIC_PAGE_TYPE_PLAYLIST":
+            return .playlist
+        case "MUSIC_PAGE_TYPE_ARTIST", "MUSIC_PAGE_TYPE_USER_CHANNEL":
+            return .artist
+        default:
+            break
+        }
+
+        // Fall back to browseId prefix
+        if browseId.hasPrefix("MPRE") || browseId.hasPrefix("OLAK") {
+            return .album
+        }
+        if browseId.hasPrefix("VL") || browseId.hasPrefix("PL") || browseId.hasPrefix("RD") {
+            return .playlist
+        }
+        if browseId.hasPrefix("UC") {
+            return .artist
+        }
+
+        return nil
+    }
+
     private static func createItemFromBrowseEndpoint(
         browseId: String,
         pageType: String?,
@@ -490,8 +523,12 @@ enum HomeResponseParser {
         thumbnailURL: URL?,
         data: [String: Any]
     ) -> HomeSectionItem? {
-        // Determine type based on pageType first, then fall back to browseId prefix
-        if pageType == "MUSIC_PAGE_TYPE_ALBUM" {
+        guard let itemType = determineBrowseItemType(browseId: browseId, pageType: pageType) else {
+            return nil
+        }
+
+        switch itemType {
+        case .album:
             let album = Album(
                 id: browseId,
                 title: title,
@@ -501,7 +538,8 @@ enum HomeResponseParser {
                 trackCount: nil
             )
             return .album(album)
-        } else if pageType == "MUSIC_PAGE_TYPE_PLAYLIST" {
+
+        case .playlist:
             let playlist = Playlist(
                 id: browseId,
                 title: title,
@@ -511,34 +549,8 @@ enum HomeResponseParser {
                 author: ParsingHelpers.extractSubtitle(from: data)
             )
             return .playlist(playlist)
-        } else if pageType == "MUSIC_PAGE_TYPE_ARTIST" || pageType == "MUSIC_PAGE_TYPE_USER_CHANNEL" {
-            let artist = Artist(
-                id: browseId,
-                name: title,
-                thumbnailURL: thumbnailURL
-            )
-            return .artist(artist)
-        } else if browseId.hasPrefix("MPRE") || browseId.hasPrefix("OLAK") {
-            let album = Album(
-                id: browseId,
-                title: title,
-                artists: ParsingHelpers.extractArtists(from: data),
-                thumbnailURL: thumbnailURL,
-                year: nil,
-                trackCount: nil
-            )
-            return .album(album)
-        } else if browseId.hasPrefix("VL") || browseId.hasPrefix("PL") || browseId.hasPrefix("RD") {
-            let playlist = Playlist(
-                id: browseId,
-                title: title,
-                description: nil,
-                thumbnailURL: thumbnailURL,
-                trackCount: nil,
-                author: ParsingHelpers.extractSubtitle(from: data)
-            )
-            return .playlist(playlist)
-        } else if browseId.hasPrefix("UC") {
+
+        case .artist:
             let artist = Artist(
                 id: browseId,
                 name: title,
@@ -546,7 +558,5 @@ enum HomeResponseParser {
             )
             return .artist(artist)
         }
-
-        return nil
     }
 }

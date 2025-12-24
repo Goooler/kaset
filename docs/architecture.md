@@ -14,7 +14,8 @@ Core/               → Shared logic (platform-independent)
   │   ├── API/      → YTMusicClient, Parsers/
   │   ├── Auth/     → AuthService (login state machine)
   │   ├── Player/   → PlayerService, NowPlayingManager (media keys)
-  │   └── WebKit/   → WebKitManager (cookie persistence)
+  │   ├── WebKit/   → WebKitManager (cookie persistence)
+  │   └── HapticService.swift → Force Touch trackpad haptic feedback
   ├── ViewModels/   → State management (HomeViewModel, etc.)
   └── Utilities/    → Helpers (DiagnosticsLogger, extensions)
 Views/
@@ -189,6 +190,23 @@ Remote command center integration for media key support:
 - Routes commands to `PlayerService` → `SingletonPlayerWebView`
 
 **Note**: Now Playing display (track info, album art) is handled natively by WKWebView's Media Session API. This provides better integration with album artwork from YouTube Music.
+
+### HapticService
+
+**File**: `Core/Services/HapticService.swift`
+
+Provides tactile feedback on Macs with Force Touch trackpads:
+
+| Feedback Type | Pattern | Used For |
+|---------------|---------|----------|
+| `.playbackAction` | `.generic` | Play, pause, skip |
+| `.toggle` | `.alignment` | Shuffle, repeat, like/dislike |
+| `.sliderBoundary` | `.levelChange` | Volume/seek at 0% or 100% |
+| `.navigation` | `.alignment` | Sidebar selection |
+| `.success` | `.generic` | Add to library, search submit |
+| `.error` | `.generic` | Action failures |
+
+**Accessibility**: Respects user preference (Settings → General) and system "Reduce Motion" setting.
 
 ### AppDelegate
 
@@ -390,7 +408,7 @@ DiagnosticsLogger.player.info("Loading video: \(videoId)")
 DiagnosticsLogger.auth.error("Cookie extraction failed")
 ```
 
-**Categories**: `.player`, `.auth`, `.api`, `.webKit`
+**Categories**: `.player`, `.auth`, `.api`, `.webKit`, `.haptic`
 
 **Levels**: `.debug`, `.info`, `.warning`, `.error`
 

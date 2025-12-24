@@ -96,107 +96,111 @@ enum PlaylistParser {
             return header
         }
 
-        // Try musicDetailHeaderRenderer (most common for playlists)
-        if let headerRenderer = headerDict["musicDetailHeaderRenderer"] as? [String: Any] {
-            if let text = ParsingHelpers.extractTitle(from: headerRenderer) {
-                header.title = text
-            }
-
-            if let descData = headerRenderer["description"] as? [String: Any],
-               let runs = descData["runs"] as? [[String: Any]]
-            {
-                header.description = runs.compactMap { $0["text"] as? String }.joined()
-            }
-
-            let thumbnails = ParsingHelpers.extractThumbnails(from: headerRenderer)
-            header.thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
-
-            if let subtitleData = headerRenderer["subtitle"] as? [String: Any],
-               let runs = subtitleData["runs"] as? [[String: Any]]
-            {
-                let texts = runs.compactMap { $0["text"] as? String }
-                header.author = texts.first
-            }
-
-            if let secondSubtitleData = headerRenderer["secondSubtitle"] as? [String: Any],
-               let runs = secondSubtitleData["runs"] as? [[String: Any]]
-            {
-                let texts = runs.compactMap { $0["text"] as? String }
-                header.duration = texts.joined()
-            }
-        }
-
-        // Try musicImmersiveHeaderRenderer (used by some albums)
-        if let immersiveHeader = headerDict["musicImmersiveHeaderRenderer"] as? [String: Any] {
-            if header.title == "Unknown Playlist",
-               let text = ParsingHelpers.extractTitle(from: immersiveHeader)
-            {
-                header.title = text
-            }
-
-            // Always try to get thumbnail from immersive header if we don't have one
-            if header.thumbnailURL == nil {
-                let thumbnails = ParsingHelpers.extractThumbnails(from: immersiveHeader)
-                header.thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
-            }
-
-            if header.description == nil,
-               let descData = immersiveHeader["description"] as? [String: Any],
-               let runs = descData["runs"] as? [[String: Any]]
-            {
-                header.description = runs.compactMap { $0["text"] as? String }.joined()
-            }
-
-            // Try subtitle for author if not set
-            if header.author == nil,
-               let subtitleData = immersiveHeader["subtitle"] as? [String: Any],
-               let runs = subtitleData["runs"] as? [[String: Any]]
-            {
-                let texts = runs.compactMap { $0["text"] as? String }
-                header.author = texts.first
-            }
-        }
-
-        // Try musicVisualHeaderRenderer (alternative format for some albums/artists)
-        if let visualHeader = headerDict["musicVisualHeaderRenderer"] as? [String: Any] {
-            if header.title == "Unknown Playlist",
-               let text = ParsingHelpers.extractTitle(from: visualHeader)
-            {
-                header.title = text
-            }
-
-            if header.thumbnailURL == nil {
-                let thumbnails = ParsingHelpers.extractThumbnails(from: visualHeader)
-                header.thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
-            }
-        }
-
-        // Try musicEditablePlaylistDetailHeaderRenderer (for user-editable playlists)
-        if let editableHeader = headerDict["musicEditablePlaylistDetailHeaderRenderer"] as? [String: Any],
-           let nestedHeaderData = editableHeader["header"] as? [String: Any],
-           let detailHeader = nestedHeaderData["musicDetailHeaderRenderer"] as? [String: Any]
-        {
-            if header.title == "Unknown Playlist",
-               let text = ParsingHelpers.extractTitle(from: detailHeader)
-            {
-                header.title = text
-            }
-
-            if header.thumbnailURL == nil {
-                let thumbnails = ParsingHelpers.extractThumbnails(from: detailHeader)
-                header.thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
-            }
-
-            if header.author == nil,
-               let subtitleData = detailHeader["subtitle"] as? [String: Any],
-               let runs = subtitleData["runs"] as? [[String: Any]]
-            {
-                let texts = runs.compactMap { $0["text"] as? String }
-                header.author = texts.first
-            }
-        }
+        // Try each header renderer type in order of preference
+        applyDetailHeaderRenderer(from: headerDict, to: &header)
+        applyImmersiveHeaderRenderer(from: headerDict, to: &header)
+        applyVisualHeaderRenderer(from: headerDict, to: &header)
+        applyEditablePlaylistHeaderRenderer(from: headerDict, to: &header)
 
         return header
+    }
+
+    private static func applyDetailHeaderRenderer(from headerDict: [String: Any], to header: inout HeaderData) {
+        guard let renderer = headerDict["musicDetailHeaderRenderer"] as? [String: Any] else { return }
+
+        if let text = ParsingHelpers.extractTitle(from: renderer) {
+            header.title = text
+        }
+
+        if let descData = renderer["description"] as? [String: Any],
+           let runs = descData["runs"] as? [[String: Any]]
+        {
+            header.description = runs.compactMap { $0["text"] as? String }.joined()
+        }
+
+        let thumbnails = ParsingHelpers.extractThumbnails(from: renderer)
+        header.thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
+
+        if let subtitleData = renderer["subtitle"] as? [String: Any],
+           let runs = subtitleData["runs"] as? [[String: Any]]
+        {
+            header.author = runs.compactMap { $0["text"] as? String }.first
+        }
+
+        if let secondSubtitleData = renderer["secondSubtitle"] as? [String: Any],
+           let runs = secondSubtitleData["runs"] as? [[String: Any]]
+        {
+            header.duration = runs.compactMap { $0["text"] as? String }.joined()
+        }
+    }
+
+    private static func applyImmersiveHeaderRenderer(from headerDict: [String: Any], to header: inout HeaderData) {
+        guard let renderer = headerDict["musicImmersiveHeaderRenderer"] as? [String: Any] else { return }
+
+        if header.title == "Unknown Playlist",
+           let text = ParsingHelpers.extractTitle(from: renderer)
+        {
+            header.title = text
+        }
+
+        if header.thumbnailURL == nil {
+            let thumbnails = ParsingHelpers.extractThumbnails(from: renderer)
+            header.thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
+        }
+
+        if header.description == nil,
+           let descData = renderer["description"] as? [String: Any],
+           let runs = descData["runs"] as? [[String: Any]]
+        {
+            header.description = runs.compactMap { $0["text"] as? String }.joined()
+        }
+
+        if header.author == nil,
+           let subtitleData = renderer["subtitle"] as? [String: Any],
+           let runs = subtitleData["runs"] as? [[String: Any]]
+        {
+            header.author = runs.compactMap { $0["text"] as? String }.first
+        }
+    }
+
+    private static func applyVisualHeaderRenderer(from headerDict: [String: Any], to header: inout HeaderData) {
+        guard let renderer = headerDict["musicVisualHeaderRenderer"] as? [String: Any] else { return }
+
+        if header.title == "Unknown Playlist",
+           let text = ParsingHelpers.extractTitle(from: renderer)
+        {
+            header.title = text
+        }
+
+        if header.thumbnailURL == nil {
+            let thumbnails = ParsingHelpers.extractThumbnails(from: renderer)
+            header.thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
+        }
+    }
+
+    private static func applyEditablePlaylistHeaderRenderer(from headerDict: [String: Any], to header: inout HeaderData) {
+        guard let editableHeader = headerDict["musicEditablePlaylistDetailHeaderRenderer"] as? [String: Any],
+              let nestedHeaderData = editableHeader["header"] as? [String: Any],
+              let detailHeader = nestedHeaderData["musicDetailHeaderRenderer"] as? [String: Any]
+        else { return }
+
+        if header.title == "Unknown Playlist",
+           let text = ParsingHelpers.extractTitle(from: detailHeader)
+        {
+            header.title = text
+        }
+
+        if header.thumbnailURL == nil {
+            let thumbnails = ParsingHelpers.extractThumbnails(from: detailHeader)
+            header.thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
+        }
+
+        if header.author == nil,
+           let subtitleData = detailHeader["subtitle"] as? [String: Any],
+           let runs = subtitleData["runs"] as? [[String: Any]]
+        {
+            header.author = runs.compactMap { $0["text"] as? String }.first
+        }
     }
 
     // MARK: - Track Parsing
