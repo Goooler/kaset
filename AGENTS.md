@@ -137,6 +137,12 @@ xcodebuild -scheme Kaset -destination 'platform=macOS' build
 swiftlint --strict && swiftformat .
 ```
 
+> ⚠️ **SwiftFormat `--self insert` rule**: The project uses `--self insert` in `.swiftformat`. This means:
+> - In static methods, call other static methods with `Self.methodName()` (not bare `methodName()`)
+> - In instance methods, use `self.property` explicitly
+> 
+> Always run `swiftformat .` before completing work to auto-fix these issues.
+
 ### Modern SwiftUI APIs
 
 | ❌ Avoid | ✅ Use |

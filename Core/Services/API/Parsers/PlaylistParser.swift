@@ -97,10 +97,10 @@ enum PlaylistParser {
         }
 
         // Try each header renderer type in order of preference
-        applyDetailHeaderRenderer(from: headerDict, to: &header)
-        applyImmersiveHeaderRenderer(from: headerDict, to: &header)
-        applyVisualHeaderRenderer(from: headerDict, to: &header)
-        applyEditablePlaylistHeaderRenderer(from: headerDict, to: &header)
+        Self.applyDetailHeaderRenderer(from: headerDict, to: &header)
+        Self.applyImmersiveHeaderRenderer(from: headerDict, to: &header)
+        Self.applyVisualHeaderRenderer(from: headerDict, to: &header)
+        Self.applyEditablePlaylistHeaderRenderer(from: headerDict, to: &header)
 
         return header
     }
