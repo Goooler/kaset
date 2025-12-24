@@ -37,7 +37,12 @@ import Testing
 /// xcodebuild test -scheme Kaset -destination 'platform=macOS' \
 ///   -only-testing:KasetTests -skip-test-tag integration
 /// ```
-@Suite("MusicIntent Integration", .tags(.integration, .slow), .serialized)
+@Suite(
+    "MusicIntent Integration",
+    .tags(.integration, .slow),
+    .serialized,
+    .enabled(if: SystemLanguageModel.default.availability == .available, "Apple Intelligence required")
+)
 @MainActor
 struct MusicIntentIntegrationTests {
     // MARK: - Constants
@@ -68,9 +73,6 @@ struct MusicIntentIntegrationTests {
     /// Parses a natural language prompt into a MusicIntent using the LLM.
     /// Creates a fresh session per call to avoid context window overflow.
     private func parseIntent(from prompt: String) async throws -> MusicIntent {
-        guard SystemLanguageModel.default.availability == .available else {
-            throw AIUnavailableError()
-        }
         // Create a fresh session each time to avoid context accumulation
         let session = LanguageModelSession(instructions: Self.systemPrompt)
         let response = try await session.respond(to: prompt, generating: MusicIntent.self)
@@ -96,8 +98,6 @@ struct MusicIntentIntegrationTests {
                 let result = try await operation()
                 try validate(result)
                 return // Success
-            } catch is AIUnavailableError {
-                throw AIUnavailableError() // Don't retry unavailability
             } catch {
                 lastError = error
                 if attempt < maxAttempts {
@@ -107,7 +107,7 @@ struct MusicIntentIntegrationTests {
             }
         }
 
-        throw lastError ?? AIUnavailableError()
+        throw lastError!
     }
 
     // MARK: - Basic Actions (Parameterized)
@@ -341,12 +341,4 @@ struct MusicIntentIntegrationTests {
             #expect(intent.action == .play)
         }
     }
-}
-
-// MARK: - AIUnavailableError
-
-/// Error thrown when Apple Intelligence is not available.
-/// Tests catching this error should be considered skipped.
-struct AIUnavailableError: Error, CustomStringConvertible {
-    var description: String { "Apple Intelligence not available on this device" }
 }
