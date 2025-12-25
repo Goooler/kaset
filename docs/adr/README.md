@@ -40,3 +40,5 @@ What becomes easier or more difficult because of this change?
 | [0003](0003-modular-api-parsers.md) | Modular API Response Parsers | Accepted |
 | [0004](0004-streaming-foundation-models.md) | Streaming Responses for Foundation Models | Accepted |
 | [0005](0005-foundation-models-architecture.md) | Foundation Models Architecture | Accepted |
+| [0006](0006-swift-testing-migration.md) | Swift Testing Migration | Accepted |
+| [0007](0007-sparkle-auto-updates.md) | Sparkle Auto-Updates | Accepted |

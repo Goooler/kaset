@@ -8,7 +8,12 @@ struct GeneralSettingsView: View {
     @State private var cacheSize: String = "Calculating..."
     @State private var isClearing = false
 
+    /// The updater service for managing app updates.
+    var updaterService: UpdaterService
+
     var body: some View {
+        @Bindable var updater = self.updaterService
+
         Form {
             // MARK: - General Section
 
@@ -66,6 +71,35 @@ struct GeneralSettingsView: View {
                 .padding(.vertical, 4)
             } header: {
                 Text("General")
+            }
+
+            // MARK: - Updates Section
+
+            Section {
+                Toggle("Automatically check for updates", isOn: $updater.automaticChecksEnabled)
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Software Update")
+                        if let lastCheck = self.updaterService.lastUpdateCheckDate {
+                            Text("Last checked: \(lastCheck, format: .relative(presentation: .named))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Never checked")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button("Check Now") {
+                        self.updaterService.checkForUpdates()
+                    }
+                    .disabled(!self.updaterService.canCheckForUpdates)
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("Updates")
             }
 
             // MARK: - About Section

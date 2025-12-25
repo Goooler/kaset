@@ -57,6 +57,7 @@ struct KasetApp: App {
     @State private var playerService = PlayerService()
     @State private var ytMusicClient: YTMusicClient?
     @State private var notificationService: NotificationService?
+    @State private var updaterService = UpdaterService()
 
     /// Triggers search field focus when set to true.
     @State private var searchFocusTrigger = false
@@ -121,8 +122,17 @@ struct KasetApp: App {
         Settings {
             SettingsView()
                 .environment(self.authService)
+                .environment(self.updaterService)
         }
         .commands {
+            // Check for Updates command in app menu
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates...") {
+                    self.updaterService.checkForUpdates()
+                }
+                .disabled(!self.updaterService.canCheckForUpdates)
+            }
+
             // Playback commands
             CommandMenu("Playback") {
                 // Play/Pause - Space
@@ -263,9 +273,11 @@ struct KasetApp: App {
 /// Main settings view with tabbed navigation.
 @available(macOS 26.0, *)
 struct SettingsView: View {
+    @Environment(UpdaterService.self) private var updaterService
+
     var body: some View {
         TabView {
-            GeneralSettingsView()
+            GeneralSettingsView(updaterService: self.updaterService)
                 .tabItem {
                     Label("General", systemImage: "gearshape")
                 }
