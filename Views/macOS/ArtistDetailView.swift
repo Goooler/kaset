@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// Detail view for an artist showing their songs and albums.
-@available(macOS 26.0, *)
 struct ArtistDetailView: View {
     let artist: Artist
     @State var viewModel: ArtistDetailViewModel
@@ -22,7 +21,7 @@ struct ArtistDetailView: View {
                         Task { await self.viewModel.load() }
                     }
                 }
-            case let .error(error):
+            case .error(let error):
                 ErrorView(error: error) {
                     Task { await self.viewModel.load() }
                 }
@@ -32,7 +31,8 @@ struct ArtistDetailView: View {
         .navigationTitle(self.artist.name)
         .toolbarBackgroundVisibility(.hidden, for: .automatic)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if case .error = self.viewModel.loadingState {} else {
+            if case .error = self.viewModel.loadingState {
+            } else {
                 PlayerBar()
             }
         }
@@ -155,7 +155,8 @@ struct ArtistDetailView: View {
         // Format subscriber count (e.g., "Subscribe 34.6M")
         if let count = detail.subscriberCount {
             // Extract just the number part if it contains "subscribers"
-            let numberPart = count
+            let numberPart =
+                count
                 .replacingOccurrences(of: " subscribers", with: "")
                 .replacingOccurrences(of: " subscriber", with: "")
             return "Subscribe \(numberPart)"
@@ -215,13 +216,15 @@ struct ArtistDetailView: View {
 
                 // See all button - navigates to full top songs view
                 if self.viewModel.hasMoreSongs, let detail = viewModel.artistDetail {
-                    NavigationLink(value: TopSongsDestination(
-                        artistId: detail.id,
-                        artistName: detail.name,
-                        songs: detail.songs,
-                        songsBrowseId: detail.songsBrowseId,
-                        songsParams: detail.songsParams
-                    )) {
+                    NavigationLink(
+                        value: TopSongsDestination(
+                            artistId: detail.id,
+                            artistName: detail.name,
+                            songs: detail.songs,
+                            songsBrowseId: detail.songsBrowseId,
+                            songsParams: detail.songsParams
+                        )
+                    ) {
                         Text("See all")
                             .font(.subheadline)
                     }
@@ -231,7 +234,8 @@ struct ArtistDetailView: View {
             }
 
             VStack(spacing: 0) {
-                ForEach(Array(self.viewModel.displayedSongs.enumerated()), id: \.element.id) { index, song in
+                ForEach(Array(self.viewModel.displayedSongs.enumerated()), id: \.element.id) {
+                    index, song in
                     self.topSongRow(song, index: index)
 
                     if index < self.viewModel.displayedSongs.count - 1 {
@@ -308,7 +312,8 @@ struct ArtistDetailView: View {
             Button {
                 Task {
                     let allSongs = await self.viewModel.getAllSongs()
-                    let startIndex = allSongs.firstIndex(where: { $0.videoId == song.videoId }) ?? index
+                    let startIndex =
+                        allSongs.firstIndex(where: { $0.videoId == song.videoId }) ?? index
                     await self.playerService.playQueue(allSongs, startingAt: startIndex)
                 }
             } label: {

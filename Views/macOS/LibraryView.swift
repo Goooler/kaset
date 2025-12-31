@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// Library view displaying user's playlists.
-@available(macOS 26.0, *)
 struct LibraryView: View {
     @State var viewModel: LibraryViewModel
     @Environment(PlayerService.self) private var playerService
@@ -26,7 +25,7 @@ struct LibraryView: View {
                         LoadingView("Loading your library...")
                     case .loaded, .loadingMore:
                         self.contentView
-                    case let .error(error):
+                    case .error(let error):
                         ErrorView(error: error) {
                             Task { await self.viewModel.refresh() }
                         }
@@ -36,13 +35,23 @@ struct LibraryView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle("Library")
             .navigationDestination(for: Playlist.self) { playlist in
-                PlaylistDetailView(
-                    playlist: playlist,
-                    viewModel: PlaylistDetailViewModel(
+                if #available(macOS 26.0, *) {
+                    PlaylistDetailView(
                         playlist: playlist,
-                        client: self.viewModel.client
+                        viewModel: PlaylistDetailViewModel(
+                            playlist: playlist,
+                            client: self.viewModel.client
+                        )
                     )
-                )
+                } else {
+                    PlaylistDetailViewLegacy(
+                        playlist: playlist,
+                        viewModel: PlaylistDetailViewModel(
+                            playlist: playlist,
+                            client: self.viewModel.client
+                        )
+                    )
+                }
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -80,9 +89,11 @@ struct LibraryView: View {
             if self.viewModel.playlists.isEmpty {
                 self.emptyPlaylistsView
             } else {
-                LazyVGrid(columns: [
-                    GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 16),
-                ], spacing: 16) {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 16)
+                    ], spacing: 16
+                ) {
                     ForEach(self.viewModel.playlists) { playlist in
                         self.playlistCard(playlist)
                     }

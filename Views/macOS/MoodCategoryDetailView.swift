@@ -6,7 +6,6 @@ import SwiftUI
 /// Displays sections of songs and playlists for the selected mood/genre.
 /// Note: This view is pushed onto an existing NavigationStack, so it uses NavigationLink
 /// to leverage the parent's navigation context.
-@available(macOS 26.0, *)
 struct MoodCategoryDetailView: View {
     @State var viewModel: MoodCategoryViewModel
     @Environment(PlayerService.self) private var playerService
@@ -18,7 +17,7 @@ struct MoodCategoryDetailView: View {
                 LoadingView("Loading \(self.viewModel.category.title)...")
             case .loaded, .loadingMore:
                 self.contentView
-            case let .error(error):
+            case .error(let error):
                 ErrorView(error: error) {
                     Task { await self.viewModel.refresh() }
                 }
@@ -26,7 +25,8 @@ struct MoodCategoryDetailView: View {
         }
         .navigationTitle(self.viewModel.category.title)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if case .error = self.viewModel.loadingState {} else {
+            if case .error = self.viewModel.loadingState {
+            } else {
                 PlayerBar()
             }
         }
@@ -87,17 +87,17 @@ struct MoodCategoryDetailView: View {
     @ViewBuilder
     private func itemView(_ item: HomeSectionItem) -> some View {
         switch item {
-        case let .song(song):
+        case .song(let song):
             // Songs play directly
             HomeSectionItemCard(item: item) {
                 Task {
                     await self.playerService.playWithRadio(song: song)
                 }
             }
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             // Playlists navigate using NavigationLink
             if MoodCategory.isMoodCategory(playlist.id),
-               let parsed = MoodCategory.parseId(playlist.id)
+                let parsed = MoodCategory.parseId(playlist.id)
             {
                 let category = MoodCategory(
                     browseId: parsed.browseId,
@@ -114,7 +114,7 @@ struct MoodCategoryDetailView: View {
                 }
                 .buttonStyle(.plain)
             }
-        case let .album(album):
+        case .album(let album):
             let playlist = Playlist(
                 id: album.id,
                 title: album.title,
@@ -127,7 +127,7 @@ struct MoodCategoryDetailView: View {
                 ItemCardContent(item: item)
             }
             .buttonStyle(.plain)
-        case let .artist(artist):
+        case .artist(let artist):
             NavigationLink(value: artist) {
                 ItemCardContent(item: item)
             }
@@ -139,7 +139,6 @@ struct MoodCategoryDetailView: View {
 // MARK: - ItemCardContent
 
 /// A non-button card view for use inside NavigationLink.
-@available(macOS 26.0, *)
 private struct ItemCardContent: View {
     let item: HomeSectionItem
 
@@ -210,7 +209,8 @@ private struct ItemCardContent: View {
         let hue2 = (hue1 + 0.1).truncatingRemainder(dividingBy: 1.0)
         let color1 = Color(hue: hue1, saturation: 0.6, brightness: 0.5)
         let color2 = Color(hue: hue2, saturation: 0.7, brightness: 0.35)
-        return LinearGradient(colors: [color1, color2], startPoint: .topLeading, endPoint: .bottomTrailing)
+        return LinearGradient(
+            colors: [color1, color2], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     private var titleAndSubtitle: some View {

@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// View displaying all top songs for an artist.
-@available(macOS 26.0, *)
 struct TopSongsView: View {
     @State var viewModel: TopSongsViewModel
     @Environment(PlayerService.self) private var playerService
@@ -33,7 +32,8 @@ struct TopSongsView: View {
         .navigationTitle("Top songs")
         .toolbarBackgroundVisibility(.hidden, for: .automatic)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if case .error = self.viewModel.loadingState {} else {
+            if case .error = self.viewModel.loadingState {
+            } else {
                 PlayerBar()
             }
         }
@@ -149,7 +149,9 @@ struct TopSongsView: View {
             Divider()
 
             // Go to Artist - show first artist with valid ID
-            if let artist = song.artists.first(where: { !$0.id.isEmpty && $0.id != UUID().uuidString }) {
+            if let artist = song.artists.first(where: {
+                !$0.id.isEmpty && $0.id != UUID().uuidString
+            }) {
                 NavigationLink(value: artist) {
                     Label("Go to Artist", systemImage: "person")
                 }
@@ -182,12 +184,14 @@ struct TopSongsView: View {
 }
 
 #Preview {
-    let songs = (1 ... 10).map { i in
+    let songs = (1...10).map { i in
         Song(
             id: "song\(i)",
             title: "Song \(i)",
             artists: [Artist(id: "artist1", name: "Test Artist")],
-            album: Album(id: "album1", title: "Test Album", artists: nil, thumbnailURL: nil, year: "2023", trackCount: 10),
+            album: Album(
+                id: "album1", title: "Test Album", artists: nil, thumbnailURL: nil, year: "2023",
+                trackCount: 10),
             duration: TimeInterval(180 + i * 30),
             thumbnailURL: nil,
             videoId: "video\(i)"

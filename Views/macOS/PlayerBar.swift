@@ -4,7 +4,6 @@ import SwiftUI
 // MARK: - PlayerBar
 
 /// Player bar shown at the bottom of the content area, styled like Apple Music with Liquid Glass.
-@available(macOS 26.0, *)
 struct PlayerBar: View {
     @Environment(PlayerService.self) private var playerService
     @Environment(WebKitManager.self) private var webKitManager
@@ -23,7 +22,7 @@ struct PlayerBar: View {
     @State private var isAdjustingVolume = false
 
     var body: some View {
-        GlassEffectContainer(spacing: 0) {
+        GlassEffectContainerCompatible(spacing: 0) {
             HStack(spacing: 0) {
                 // Left section: Playback controls
                 self.playbackControls
@@ -41,8 +40,8 @@ struct PlayerBar: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 8)
             .frame(height: 52)
-            .glassEffect(.regular.interactive(), in: .capsule)
-            .glassEffectID("playerBar", in: self.playerNamespace)
+            .glassEffectInteractiveCapsuleCompatible()
+            .glassEffectIDCompatible("playerBar", in: self.playerNamespace)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
@@ -77,14 +76,20 @@ struct PlayerBar: View {
 
                 // Command + Up Arrow: Volume up
                 Button("") {
-                    Task { await self.playerService.setVolume(min(1.0, self.playerService.volume + 0.1)) }
+                    Task {
+                        await self.playerService.setVolume(
+                            min(1.0, self.playerService.volume + 0.1))
+                    }
                 }
                 .keyboardShortcut(.upArrow, modifiers: .command)
                 .opacity(0)
 
                 // Command + Down Arrow: Volume down
                 Button("") {
-                    Task { await self.playerService.setVolume(max(0.0, self.playerService.volume - 0.1)) }
+                    Task {
+                        await self.playerService.setVolume(
+                            max(0.0, self.playerService.volume - 0.1))
+                    }
                 }
                 .keyboardShortcut(.downArrow, modifiers: .command)
                 .opacity(0)
@@ -138,7 +143,9 @@ struct PlayerBar: View {
     private var trackInfoView: some View {
         HStack(spacing: 10) {
             // Thumbnail
-            CachedAsyncImage(url: self.playerService.currentTrack?.thumbnailURL?.highQualityThumbnailURL) { image in
+            CachedAsyncImage(
+                url: self.playerService.currentTrack?.thumbnailURL?.highQualityThumbnailURL
+            ) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -176,13 +183,18 @@ struct PlayerBar: View {
     private var seekBarView: some View {
         HStack(spacing: 10) {
             // Elapsed time - show seek position while dragging, actual progress otherwise
-            Text(self.formatTime(self.isSeeking ? self.seekValue * self.playerService.duration : self.playerService.progress))
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .frame(width: 40, alignment: .trailing)
+            Text(
+                self.formatTime(
+                    self.isSeeking
+                        ? self.seekValue * self.playerService.duration : self.playerService.progress
+                )
+            )
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .frame(width: 40, alignment: .trailing)
 
             // Seek slider
-            Slider(value: self.$seekValue, in: 0 ... 1) { editing in
+            Slider(value: self.$seekValue, in: 0...1) { editing in
                 if editing {
                     // User started dragging
                     self.isSeeking = true
@@ -194,10 +206,12 @@ struct PlayerBar: View {
             .controlSize(.small)
 
             // Remaining time
-            Text("-\(self.formatTime(self.playerService.duration - (self.isSeeking ? self.seekValue * self.playerService.duration : self.playerService.progress)))")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .frame(width: 40, alignment: .leading)
+            Text(
+                "-\(self.formatTime(self.playerService.duration - (self.isSeeking ? self.seekValue * self.playerService.duration : self.playerService.progress)))"
+            )
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .frame(width: 40, alignment: .leading)
         }
     }
 
@@ -229,7 +243,9 @@ struct PlayerBar: View {
             } label: {
                 Image(systemName: "shuffle")
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(self.playerService.shuffleEnabled ? .red : .primary.opacity(0.85))
+                    .foregroundStyle(
+                        self.playerService.shuffleEnabled ? .red : .primary.opacity(0.85)
+                    )
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.pressable)
@@ -263,7 +279,7 @@ struct PlayerBar: View {
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.pressable)
-            .glassEffectID("playPause", in: self.playerNamespace)
+            .glassEffectIDCompatible("playPause", in: self.playerNamespace)
             .accessibilityLabel(self.playerService.isPlaying ? "Pause" : "Play")
 
             // Next
@@ -287,7 +303,9 @@ struct PlayerBar: View {
             } label: {
                 Image(systemName: self.repeatIcon)
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(self.playerService.repeatMode != .off ? .red : .primary.opacity(0.85))
+                    .foregroundStyle(
+                        self.playerService.repeatMode != .off ? .red : .primary.opacity(0.85)
+                    )
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.pressable)
@@ -337,7 +355,7 @@ struct PlayerBar: View {
                 .frame(width: 18)
 
             // Volume slider with immediate updates
-            Slider(value: self.$volumeValue, in: 0 ... 1) { editing in
+            Slider(value: self.$volumeValue, in: 0...1) { editing in
                 if editing {
                     // User started dragging
                     self.isAdjustingVolume = true
@@ -378,17 +396,24 @@ struct PlayerBar: View {
                 HapticService.toggle()
                 self.playerService.dislikeCurrentTrack()
             } label: {
-                Image(systemName: self.playerService.currentTrackLikeStatus == .dislike
-                    ? "hand.thumbsdown.fill"
-                    : "hand.thumbsdown")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(self.playerService.currentTrackLikeStatus == .dislike ? .red : .primary.opacity(0.85))
-                    .contentTransition(.symbolEffect(.replace))
+                Image(
+                    systemName: self.playerService.currentTrackLikeStatus == .dislike
+                        ? "hand.thumbsdown.fill"
+                        : "hand.thumbsdown"
+                )
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(
+                    self.playerService.currentTrackLikeStatus == .dislike
+                        ? .red : .primary.opacity(0.85)
+                )
+                .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.pressable)
             .symbolEffect(.bounce, value: self.playerService.currentTrackLikeStatus == .dislike)
             .accessibilityLabel("Dislike")
-            .accessibilityValue(self.playerService.currentTrackLikeStatus == .dislike ? "Disliked" : "Not disliked")
+            .accessibilityValue(
+                self.playerService.currentTrackLikeStatus == .dislike ? "Disliked" : "Not disliked"
+            )
             .disabled(self.playerService.currentTrack == nil)
 
             // Like button
@@ -396,17 +421,24 @@ struct PlayerBar: View {
                 HapticService.toggle()
                 self.playerService.likeCurrentTrack()
             } label: {
-                Image(systemName: self.playerService.currentTrackLikeStatus == .like
-                    ? "hand.thumbsup.fill"
-                    : "hand.thumbsup")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(self.playerService.currentTrackLikeStatus == .like ? .red : .primary.opacity(0.85))
-                    .contentTransition(.symbolEffect(.replace))
+                Image(
+                    systemName: self.playerService.currentTrackLikeStatus == .like
+                        ? "hand.thumbsup.fill"
+                        : "hand.thumbsup"
+                )
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(
+                    self.playerService.currentTrackLikeStatus == .like
+                        ? .red : .primary.opacity(0.85)
+                )
+                .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.pressable)
             .symbolEffect(.bounce, value: self.playerService.currentTrackLikeStatus == .like)
             .accessibilityLabel("Like")
-            .accessibilityValue(self.playerService.currentTrackLikeStatus == .like ? "Liked" : "Not liked")
+            .accessibilityValue(
+                self.playerService.currentTrackLikeStatus == .like ? "Liked" : "Not liked"
+            )
             .disabled(self.playerService.currentTrack == nil)
 
             // Lyrics button
@@ -421,7 +453,7 @@ struct PlayerBar: View {
                     .foregroundStyle(self.playerService.showLyrics ? .red : .primary.opacity(0.85))
             }
             .buttonStyle(.pressable)
-            .glassEffectID("lyrics", in: self.playerNamespace)
+            .glassEffectIDCompatible("lyrics", in: self.playerNamespace)
             .accessibilityIdentifier(AccessibilityID.PlayerBar.lyricsButton)
             .accessibilityLabel("Lyrics")
             .accessibilityValue(self.playerService.showLyrics ? "Showing" : "Hidden")
@@ -439,7 +471,7 @@ struct PlayerBar: View {
                     .foregroundStyle(self.playerService.showQueue ? .red : .primary.opacity(0.85))
             }
             .buttonStyle(.pressable)
-            .glassEffectID("queue", in: self.playerNamespace)
+            .glassEffectIDCompatible("queue", in: self.playerNamespace)
             .accessibilityIdentifier(AccessibilityID.PlayerBar.queueButton)
             .accessibilityLabel("Queue")
             .accessibilityValue(self.playerService.showQueue ? "Showing" : "Hidden")
@@ -461,7 +493,6 @@ struct PlayerBar: View {
 // MARK: - AirPlayButton
 
 /// A SwiftUI wrapper for AVRoutePickerView to show AirPlay destinations.
-@available(macOS 26.0, *)
 struct AirPlayButton: NSViewRepresentable {
     func makeNSView(context _: Context) -> AVRoutePickerView {
         let routePickerView = AVRoutePickerView()

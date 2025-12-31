@@ -43,11 +43,25 @@ extension EnvironmentValues {
     }
 }
 
-// MARK: - KasetApp
+// MARK: - App Entry Point
 
-/// Main entry point for the Kaset macOS application.
-@available(macOS 26.0, *)
+/// Version-aware entry point that dispatches to the appropriate app implementation.
 @main
+struct KasetAppLauncher {
+    static func main() {
+        if #available(macOS 26.0, *) {
+            KasetApp.main()
+        } else {
+            KasetAppLegacy.main()
+        }
+    }
+}
+
+// MARK: - KasetApp (macOS 26+)
+
+/// Main entry point for the Kaset macOS application on macOS 26+.
+/// Includes full Apple Intelligence features.
+@available(macOS 26.0, *)
 struct KasetApp: App {
     /// App delegate for lifecycle management (background playback).
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -65,7 +79,8 @@ struct KasetApp: App {
     @State private var searchFocusTrigger = false
 
     /// Current navigation selection for keyboard navigation.
-    @State private var navigationSelection: NavigationItem? = SettingsManager.shared.launchNavigationItem
+    @State private var navigationSelection: NavigationItem? = SettingsManager.shared
+        .launchNavigationItem
 
     /// Whether the command bar is visible.
     @State private var showCommandBar = false
@@ -77,11 +92,12 @@ struct KasetApp: App {
 
         // Use mock client in UI test mode, real client otherwise
         let realClient = YTMusicClient(authService: auth, webKitManager: webkit)
-        let client: YTMusicClientProtocol = if UITestConfig.isUITestMode {
-            MockUITestYTMusicClient()
-        } else {
-            realClient
-        }
+        let client: YTMusicClientProtocol =
+            if UITestConfig.isUITestMode {
+                MockUITestYTMusicClient()
+            } else {
+                realClient
+            }
 
         // Wire up dependencies
         player.setYTMusicClient(client)
@@ -150,7 +166,9 @@ struct KasetApp: App {
                     }
                 }
                 .keyboardShortcut(.space, modifiers: [])
-                .disabled(self.playerService.currentTrack == nil && self.playerService.pendingPlayVideoId == nil)
+                .disabled(
+                    self.playerService.currentTrack == nil
+                        && self.playerService.pendingPlayVideoId == nil)
 
                 Divider()
 
@@ -175,7 +193,8 @@ struct KasetApp: App {
                 // Volume Up - ⌘↑
                 Button("Volume Up") {
                     Task {
-                        await self.playerService.setVolume(min(1.0, self.playerService.volume + 0.1))
+                        await self.playerService.setVolume(
+                            min(1.0, self.playerService.volume + 0.1))
                     }
                 }
                 .keyboardShortcut(.upArrow, modifiers: .command)
@@ -183,7 +202,8 @@ struct KasetApp: App {
                 // Volume Down - ⌘↓
                 Button("Volume Down") {
                     Task {
-                        await self.playerService.setVolume(max(0.0, self.playerService.volume - 0.1))
+                        await self.playerService.setVolume(
+                            max(0.0, self.playerService.volume - 0.1))
                     }
                 }
                 .keyboardShortcut(.downArrow, modifiers: .command)
@@ -298,7 +318,7 @@ struct KasetApp: App {
     /// Handles parsed URL content.
     private func handleParsedContent(_ content: URLHandler.ParsedContent) {
         switch content {
-        case let .song(videoId):
+        case .song(let videoId):
             DiagnosticsLogger.app.info("Playing song from URL: \(videoId)")
             let song = Song(
                 id: videoId,
@@ -334,6 +354,292 @@ struct SettingsView: View {
             IntelligenceSettingsView()
                 .tabItem {
                     Label("Intelligence", systemImage: "sparkles")
+                }
+        }
+        .frame(width: 450, height: 400)
+    }
+}
+
+// MARK: - KasetAppLegacy (macOS 15)
+
+/// Fallback app for macOS 15 without Apple Intelligence features.
+struct KasetAppLegacy: App {
+    /// App delegate for lifecycle management (background playback).
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+    @State private var authService = AuthService()
+    @State private var webKitManager = WebKitManager.shared
+    @State private var playerService = PlayerService()
+    @State private var ytMusicClient: YTMusicClient?
+    @State private var notificationService: NotificationService?
+    @State private var updaterService = UpdaterService()
+    @State private var favoritesManager = FavoritesManager.shared
+    @State private var likeStatusManager = SongLikeStatusManager.shared
+
+    /// Triggers search field focus when set to true.
+    @State private var searchFocusTrigger = false
+
+    /// Current navigation selection for keyboard navigation.
+    @State private var navigationSelection: NavigationItem? = SettingsManager.shared
+        .launchNavigationItem
+
+    /// Whether the command bar is visible.
+    @State private var showCommandBar = false
+
+    init() {
+        let auth = AuthService()
+        let webkit = WebKitManager.shared
+        let player = PlayerService()
+
+        // Use mock client in UI test mode, real client otherwise
+        let realClient = YTMusicClient(authService: auth, webKitManager: webkit)
+        let client: YTMusicClientProtocol =
+            if UITestConfig.isUITestMode {
+                MockUITestYTMusicClient()
+            } else {
+                realClient
+            }
+
+        // Wire up dependencies
+        player.setYTMusicClient(client)
+        SongLikeStatusManager.shared.setClient(client)
+
+        _authService = State(initialValue: auth)
+        _webKitManager = State(initialValue: webkit)
+        _playerService = State(initialValue: player)
+        _ytMusicClient = State(initialValue: UITestConfig.isUITestMode ? nil : realClient)
+        _notificationService = State(initialValue: NotificationService(playerService: player))
+
+        if UITestConfig.isUITestMode {
+            DiagnosticsLogger.ui.info("App launched in UI Test mode")
+        }
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            // Skip UI during unit tests to prevent window spam
+            if UITestConfig.isRunningUnitTests, !UITestConfig.isUITestMode {
+                Color.clear
+                    .frame(width: 1, height: 1)
+            } else {
+                MainWindowLegacy(navigationSelection: self.$navigationSelection)
+                    .environment(self.authService)
+                    .environment(self.webKitManager)
+                    .environment(self.playerService)
+                    .environment(self.favoritesManager)
+                    .environment(self.likeStatusManager)
+                    .environment(\.searchFocusTrigger, self.$searchFocusTrigger)
+                    .environment(\.navigationSelection, self.$navigationSelection)
+                    .environment(\.showCommandBar, self.$showCommandBar)
+                    .task {
+                        // Check if user is already logged in from previous session
+                        await self.authService.checkLoginStatus()
+                    }
+                    .onOpenURL { url in
+                        self.handleIncomingURL(url)
+                    }
+            }
+        }
+
+        Settings {
+            SettingsViewLegacy()
+                .environment(self.authService)
+                .environment(self.updaterService)
+        }
+        .commands {
+            // Check for Updates command in app menu
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates...") {
+                    self.updaterService.checkForUpdates()
+                }
+                .disabled(!self.updaterService.canCheckForUpdates)
+            }
+
+            // Playback commands
+            CommandMenu("Playback") {
+                // Play/Pause - Space
+                Button(self.playerService.isPlaying ? "Pause" : "Play") {
+                    Task {
+                        await self.playerService.playPause()
+                    }
+                }
+                .keyboardShortcut(.space, modifiers: [])
+                .disabled(
+                    self.playerService.currentTrack == nil
+                        && self.playerService.pendingPlayVideoId == nil)
+
+                Divider()
+
+                // Next Track - ⌘→
+                Button("Next") {
+                    Task {
+                        await self.playerService.next()
+                    }
+                }
+                .keyboardShortcut(.rightArrow, modifiers: .command)
+
+                // Previous Track - ⌘←
+                Button("Previous") {
+                    Task {
+                        await self.playerService.previous()
+                    }
+                }
+                .keyboardShortcut(.leftArrow, modifiers: .command)
+
+                Divider()
+
+                // Volume Up - ⌘↑
+                Button("Volume Up") {
+                    Task {
+                        await self.playerService.setVolume(
+                            min(1.0, self.playerService.volume + 0.1))
+                    }
+                }
+                .keyboardShortcut(.upArrow, modifiers: .command)
+
+                // Volume Down - ⌘↓
+                Button("Volume Down") {
+                    Task {
+                        await self.playerService.setVolume(
+                            max(0.0, self.playerService.volume - 0.1))
+                    }
+                }
+                .keyboardShortcut(.downArrow, modifiers: .command)
+
+                // Mute - ⌘⇧M
+                Button(self.playerService.isMuted ? "Unmute" : "Mute") {
+                    Task {
+                        await self.playerService.toggleMute()
+                    }
+                }
+                .keyboardShortcut("m", modifiers: [.command, .shift])
+
+                Divider()
+
+                // Shuffle - ⌘S
+                Button(self.playerService.shuffleEnabled ? "Shuffle Off" : "Shuffle On") {
+                    self.playerService.toggleShuffle()
+                }
+                .keyboardShortcut("s", modifiers: .command)
+
+                // Repeat - ⌘R
+                Button(self.repeatModeLabel) {
+                    self.playerService.cycleRepeatMode()
+                }
+                .keyboardShortcut("r", modifiers: .command)
+
+                Divider()
+
+                // Lyrics - ⌘L
+                Button(self.playerService.showLyrics ? "Hide Lyrics" : "Show Lyrics") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        self.playerService.showLyrics.toggle()
+                    }
+                }
+                .keyboardShortcut("l", modifiers: .command)
+            }
+
+            // Navigation commands - replace default sidebar toggle
+            CommandGroup(replacing: .sidebar) {
+                // Home - ⌘1
+                Button("Home") {
+                    self.navigationSelection = .home
+                }
+                .keyboardShortcut("1", modifiers: .command)
+
+                // Explore - ⌘2
+                Button("Explore") {
+                    self.navigationSelection = .explore
+                }
+                .keyboardShortcut("2", modifiers: .command)
+
+                // Library - ⌘3
+                Button("Library") {
+                    self.navigationSelection = .library
+                }
+                .keyboardShortcut("3", modifiers: .command)
+
+                Divider()
+
+                // Search - ⌘F
+                Button("Search") {
+                    self.navigationSelection = .search
+                    // Trigger focus after a brief delay to allow view to appear
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(100))
+                        self.searchFocusTrigger = true
+                    }
+                }
+                .keyboardShortcut("f", modifiers: .command)
+            }
+        }
+    }
+
+    /// Label for repeat mode menu item.
+    private var repeatModeLabel: String {
+        switch self.playerService.repeatMode {
+        case .off:
+            "Repeat All"
+        case .all:
+            "Repeat One"
+        case .one:
+            "Repeat Off"
+        }
+    }
+
+    // MARK: - URL Handling
+
+    /// Handles an incoming URL (from custom scheme).
+    private func handleIncomingURL(_ url: URL) {
+        DiagnosticsLogger.app.info("Received URL: \(url.absoluteString)")
+
+        guard let content = URLHandler.parse(url) else {
+            DiagnosticsLogger.app.warning("Unrecognized URL format: \(url.absoluteString)")
+            return
+        }
+
+        // If not logged in, ignore for now
+        guard self.authService.state.isLoggedIn else {
+            DiagnosticsLogger.app.info("Not logged in, ignoring URL")
+            return
+        }
+
+        self.handleParsedContent(content)
+    }
+
+    /// Handles parsed URL content.
+    private func handleParsedContent(_ content: URLHandler.ParsedContent) {
+        switch content {
+        case .song(let videoId):
+            DiagnosticsLogger.app.info("Playing song from URL: \(videoId)")
+            let song = Song(
+                id: videoId,
+                title: "Loading...",
+                artists: [],
+                videoId: videoId
+            )
+            Task {
+                await self.playerService.play(song: song)
+            }
+
+        case .playlist, .album, .artist:
+            // Only song playback is supported via URL scheme
+            DiagnosticsLogger.app.info("URL scheme only supports song playback")
+        }
+    }
+}
+
+// MARK: - SettingsViewLegacy
+
+/// Settings view for macOS 15 without Intelligence tab.
+struct SettingsViewLegacy: View {
+    @Environment(UpdaterService.self) private var updaterService
+
+    var body: some View {
+        TabView {
+            GeneralSettingsView(updaterService: self.updaterService)
+                .tabItem {
+                    Label("General", systemImage: "gearshape")
                 }
         }
         .frame(width: 450, height: 400)
