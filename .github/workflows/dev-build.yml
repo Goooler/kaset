@@ -13,6 +13,7 @@ on:
       - "**.xcworkspace/**"
       - "Assets.xcassets/**"
       - ".github/workflows/dev-build.yml"
+  pull_request:
   workflow_dispatch:
 
 jobs:
