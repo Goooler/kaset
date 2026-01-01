@@ -356,7 +356,7 @@ jobs:
                           length="${LENGTH}"
                           type="application/octet-stream"
                           sparkle:edSignature="${SIGNATURE}"/>
-                      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+                      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
                   </item>
 
               </channel>
