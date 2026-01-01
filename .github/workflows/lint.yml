@@ -13,7 +13,6 @@ on:
       - ".swiftformat"
       - ".github/workflows/lint.yml"
   pull_request:
-    branches: [main]
     paths:
       - "**.swift"
       - ".swiftlint.yml"
