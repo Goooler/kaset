@@ -245,8 +245,7 @@ jobs:
 
           ### Homebrew (recommended)
           \`\`\`bash
-          brew tap sozercan/kaset https://github.com/sozercan/kaset
-          brew install --cask kaset
+          brew install Goooler/repo/kaset-fork
           \`\`\`
 
           ### Manual Download
