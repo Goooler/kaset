@@ -383,4 +383,4 @@ jobs:
 
           git add Casks/kaset.rb
           git diff --cached --quiet || git commit -m "Update cask and appcast to ${{ steps.artifact.outputs.tag }}"
-          git push origin ${{ github.event.repository.default_branch }}
+#          git push origin ${{ github.event.repository.default_branch }}
