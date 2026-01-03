@@ -143,6 +143,28 @@ final class MockUITestYTMusicClient: YTMusicClientProtocol {
         )
     }
 
+    func searchFeaturedPlaylists(query _: String) async throws -> SearchResponse {
+        try? await Task.sleep(for: .milliseconds(100))
+        return SearchResponse(
+            songs: [],
+            albums: [],
+            artists: [],
+            playlists: self.searchResults.playlists,
+            continuationToken: nil
+        )
+    }
+
+    func searchCommunityPlaylists(query _: String) async throws -> SearchResponse {
+        try? await Task.sleep(for: .milliseconds(100))
+        return SearchResponse(
+            songs: [],
+            albums: [],
+            artists: [],
+            playlists: self.searchResults.playlists,
+            continuationToken: nil
+        )
+    }
+
     func getSearchContinuation() async throws -> SearchResponse? {
         nil
     }

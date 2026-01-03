@@ -9,18 +9,25 @@ struct QueueView: View {
     @Environment(FavoritesManager.self) private var favoritesManager
     @Environment(\.showCommandBar) private var showCommandBar
 
+    /// Namespace for glass effect morphing.
+    @Namespace private var queueNamespace
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            self.headerView
+        GlassEffectContainer(spacing: 0) {
+            VStack(spacing: 0) {
+                // Header
+                self.headerView
 
-            Divider()
+                Divider()
+                    .opacity(0.3)
 
-            // Content
-            self.contentView
+                // Content
+                self.contentView
+            }
+            .frame(width: 280)
+            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
+            .glassEffectID("queuePanel", in: self.queueNamespace)
         }
-        .frame(minWidth: 280, maxWidth: 280)
-        .background(.background.opacity(0.95))
         .glassEffectTransition(.materialize)
         .accessibilityIdentifier(AccessibilityID.Queue.container)
     }
@@ -49,7 +56,7 @@ struct QueueView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
     }
 
     // MARK: - Content

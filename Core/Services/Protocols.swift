@@ -109,6 +109,12 @@ protocol YTMusicClientProtocol: Sendable {
     /// Searches for playlists only (filtered search with pagination).
     func searchPlaylists(query: String) async throws -> SearchResponse
 
+    /// Searches for featured playlists only (YouTube Music curated playlists).
+    func searchFeaturedPlaylists(query: String) async throws -> SearchResponse
+
+    /// Searches for community playlists only (user-created playlists).
+    func searchCommunityPlaylists(query: String) async throws -> SearchResponse
+
     /// Fetches the next batch of search results via continuation.
     /// Returns nil if no more results are available.
     func getSearchContinuation() async throws -> SearchResponse?

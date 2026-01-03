@@ -313,6 +313,36 @@ final class MockYTMusicClient: YTMusicClientProtocol {
         )
     }
 
+    func searchFeaturedPlaylists(query: String) async throws -> SearchResponse {
+        self.searchCalled = true
+        self.searchQueries.append(query)
+        self._searchContinuationIndex = 0
+        if let error = shouldThrowError { throw error }
+        let hasMore = !self.searchContinuationResponses.isEmpty
+        return SearchResponse(
+            songs: [],
+            albums: [],
+            artists: [],
+            playlists: self.searchResponse.playlists,
+            continuationToken: hasMore ? "mock-token" : nil
+        )
+    }
+
+    func searchCommunityPlaylists(query: String) async throws -> SearchResponse {
+        self.searchCalled = true
+        self.searchQueries.append(query)
+        self._searchContinuationIndex = 0
+        if let error = shouldThrowError { throw error }
+        let hasMore = !self.searchContinuationResponses.isEmpty
+        return SearchResponse(
+            songs: [],
+            albums: [],
+            artists: [],
+            playlists: self.searchResponse.playlists,
+            continuationToken: hasMore ? "mock-token" : nil
+        )
+    }
+
     func getSearchContinuation() async throws -> SearchResponse? {
         if let error = shouldThrowError { throw error }
         guard self._searchContinuationIndex < self.searchContinuationResponses.count else {

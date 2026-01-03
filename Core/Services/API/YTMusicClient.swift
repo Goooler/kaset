@@ -259,6 +259,10 @@ final class YTMusicClient: YTMusicClientProtocol {
         static let albums = "EgWKAQIYAWoMEA4QChADEAQQCRAF"
         static let artists = "EgWKAQIgAWoMEA4QChADEAQQCRAF"
         static let playlists = "EgWKAQIoAWoMEA4QChADEAQQCRAF"
+        /// Featured playlists (first-party YouTube Music curated playlists)
+        static let featuredPlaylists = "EgeKAQQoADgBagwQDhAKEAMQBBAJEAU="
+        /// Community playlists (user-created playlists)
+        static let communityPlaylists = "EgeKAQQoAEABagwQDhAKEAMQBBAJEAU="
     }
 
     /// Continuation token for filtered search pagination.
@@ -317,6 +321,40 @@ final class YTMusicClient: YTMusicClientProtocol {
         self.searchContinuationToken = token
 
         self.logger.info("Playlists search found \(playlists.count) playlists, hasMore: \(token != nil)")
+        return SearchResponse(songs: [], albums: [], artists: [], playlists: playlists, continuationToken: token)
+    }
+
+    /// Searches for featured playlists only (YouTube Music curated playlists).
+    func searchFeaturedPlaylists(query: String) async throws -> SearchResponse {
+        self.logger.info("Searching featured playlists only for: \(query)")
+
+        let body: [String: Any] = [
+            "query": query,
+            "params": SearchFilterParams.featuredPlaylists,
+        ]
+
+        let data = try await request("search", body: body, ttl: APICache.TTL.search)
+        let (playlists, token) = SearchResponseParser.parsePlaylistsOnly(data)
+        self.searchContinuationToken = token
+
+        self.logger.info("Featured playlists search found \(playlists.count) playlists, hasMore: \(token != nil)")
+        return SearchResponse(songs: [], albums: [], artists: [], playlists: playlists, continuationToken: token)
+    }
+
+    /// Searches for community playlists only (user-created playlists).
+    func searchCommunityPlaylists(query: String) async throws -> SearchResponse {
+        self.logger.info("Searching community playlists only for: \(query)")
+
+        let body: [String: Any] = [
+            "query": query,
+            "params": SearchFilterParams.communityPlaylists,
+        ]
+
+        let data = try await request("search", body: body, ttl: APICache.TTL.search)
+        let (playlists, token) = SearchResponseParser.parsePlaylistsOnly(data)
+        self.searchContinuationToken = token
+
+        self.logger.info("Community playlists search found \(playlists.count) playlists, hasMore: \(token != nil)")
         return SearchResponse(songs: [], albums: [], artists: [], playlists: playlists, continuationToken: token)
     }
 
