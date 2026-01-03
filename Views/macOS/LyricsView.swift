@@ -6,7 +6,6 @@ import SwiftUI
 
 /// Right sidebar panel displaying lyrics for the current track.
 /// Uses AI features on macOS 26+, falls back to basic lyrics display on older versions.
-@available(macOS 26.0, *)
 struct LyricsView: View {
     @Environment(PlayerService.self) private var playerService
 
@@ -25,18 +24,24 @@ struct LyricsView: View {
 
     private let logger = DiagnosticsLogger.ai
 
+    /// Namespace for glass effect morphing.
+    @Namespace private var lyricsNamespace
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            self.headerView
+            VStack(spacing: 0) {
+                // Header
+                self.headerView
 
-            Divider()
+                Divider()
+                    .opacity(0.3)
 
-            // Content
-            self.contentView
+                // Content
+                self.contentView
+            }
+            .frame(width: 280)
         }
-        .frame(minWidth: 280, maxWidth: 280)
-        .background(.background.opacity(0.95))
+        .background(.ultraThinMaterial, in: .rect(cornerRadius: 20))
         .glassEffectTransitionCompatible()
         .onChange(of: self.playerService.currentTrack?.videoId) { _, newVideoId in
             if let videoId = newVideoId, videoId != lastLoadedVideoId {
@@ -93,19 +98,22 @@ struct LyricsView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(self.showExplanation ? .purple : .secondary)
                 .help("Explain lyrics with AI")
+                .accessibilityLabel(self.showExplanation ? "Hide lyrics explanation" : "Explain lyrics with AI")
                 .requiresIntelligenceCompatible()
                 .disabled(self.isExplaining)
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
     }
 
     // MARK: - Content
 
     @ViewBuilder
     private var contentView: some View {
-        if self.isLoading {
+        if self.playerService.currentTrack == nil {
+            self.noTrackPlayingView
+        } else if self.isLoading {
             self.loadingView
         } else if let lyrics, lyrics.isAvailable {
             self.lyricsContentView(lyrics)
@@ -309,6 +317,25 @@ struct LyricsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    private var noTrackPlayingView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "play.circle")
+                .font(.system(size: 40))
+                .foregroundStyle(.tertiary)
+
+            Text("No Song Playing")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            Text("Play a song to view its lyrics here.")
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     // MARK: - Data Loading
 
     private func loadLyrics(for videoId: String) async {
@@ -402,7 +429,6 @@ struct LyricsView: View {
     }
 }
 
-@available(macOS 26.0, *)
 #Preview {
     let authService = AuthService()
     let client = YTMusicClient(authService: authService, webKitManager: .shared)

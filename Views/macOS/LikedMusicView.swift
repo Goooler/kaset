@@ -101,9 +101,26 @@ struct LikedMusicView: View {
                     ForEach(self.viewModel.songs.indices, id: \.self) { index in
                         let song = self.viewModel.songs[index]
                         self.songRow(song, index: index)
+                            .onAppear {
+                                // Load more when reaching the last few items
+                                if index >= self.viewModel.songs.count - 3, self.viewModel.hasMore {
+                                    Task { await self.viewModel.loadMore() }
+                                }
+                            }
                         if index < self.viewModel.songs.count - 1 {
                             Divider()
                                 .padding(.leading, 72)
+                        }
+                    }
+
+                    // Loading indicator for pagination
+                    if self.viewModel.loadingState == .loadingMore {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                                .controlSize(.small)
+                                .padding()
+                            Spacer()
                         }
                     }
                 }
@@ -268,9 +285,7 @@ struct LikedMusicView: View {
             Divider()
 
             // Go to Artist - show first artist with valid ID
-            if let artist = song.artists.first(where: {
-                !$0.id.isEmpty && $0.id != UUID().uuidString
-            }) {
+            if let artist = song.artists.first(where: { $0.hasNavigableId }) {
                 NavigationLink(value: artist) {
                     Label("Go to Artist", systemImage: "person")
                 }

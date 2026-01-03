@@ -8,18 +8,24 @@ struct QueueView: View {
     @Environment(FavoritesManager.self) private var favoritesManager
     @Environment(\.showCommandBar) private var showCommandBar
 
+    /// Namespace for glass effect morphing.
+    @Namespace private var queueNamespace
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            self.headerView
+            VStack(spacing: 0) {
+                // Header
+                self.headerView
 
-            Divider()
+                Divider()
+                    .opacity(0.3)
 
-            // Content
-            self.contentView
+                // Content
+                self.contentView
+            }
+            .frame(width: 280)
         }
-        .frame(minWidth: 280, maxWidth: 280)
-        .background(.background.opacity(0.95))
+        .background(.ultraThinMaterial, in: .rect(cornerRadius: 20))
         .glassEffectTransitionCompatible()
         .accessibilityIdentifier(AccessibilityID.Queue.container)
     }
@@ -48,7 +54,7 @@ struct QueueView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
     }
 
     // MARK: - Content
@@ -226,7 +232,6 @@ private struct QueueRowView: View {
     }
 }
 
-@available(macOS 26.0, *)
 #Preview("Queue View") {
     let playerService = PlayerService()
     QueueView()
@@ -235,7 +240,6 @@ private struct QueueRowView: View {
         .frame(height: 600)
 }
 
-@available(macOS 26.0, *)
 #Preview("Queue View with Items") {
     let playerService = PlayerService()
     // Note: In real use, queue would be populated via playQueue()

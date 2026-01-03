@@ -8,7 +8,6 @@ import SwiftUI
 
 /// Detail view for a playlist showing its tracks.
 /// Note: This view uses FoundationModels for AI features on macOS 26+.
-@available(macOS 26.0, *)
 struct PlaylistDetailView: View {
     let playlist: Playlist
     @State var viewModel: PlaylistDetailViewModel
@@ -221,12 +220,29 @@ struct PlaylistDetailView: View {
             ForEach(tracks.indices, id: \.self) { index in
                 let track = tracks[index]
                 self.trackRow(track, index: index, tracks: tracks, isAlbum: isAlbum)
+                    .onAppear {
+                        // Load more when reaching the last few items
+                        if index >= tracks.count - 3, self.viewModel.hasMore {
+                            Task { await self.viewModel.loadMore() }
+                        }
+                    }
 
                 if index < tracks.count - 1 {
                     Divider()
                         // For albums: 28 (index) + 12 (spacing)
                         // For playlists: 28 (index) + 12 (spacing) + 40 (thumbnail) + 16 (spacing)
                         .padding(.leading, isAlbum ? 40 : 96)
+                }
+            }
+
+            // Loading indicator for pagination
+            if self.viewModel.loadingState == .loadingMore {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .controlSize(.small)
+                        .padding()
+                    Spacer()
                 }
             }
         }
@@ -323,9 +339,7 @@ struct PlaylistDetailView: View {
             Divider()
 
             // Go to Artist - show first artist with valid ID
-            if let artist = track.artists.first(where: {
-                !$0.id.isEmpty && $0.id != UUID().uuidString
-            }) {
+            if let artist = track.artists.first(where: { $0.hasNavigableId }) {
                 NavigationLink(value: artist) {
                     Label("Go to Artist", systemImage: "person")
                 }
@@ -489,6 +503,7 @@ private struct RefinePlaylistSheet: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Close")
             }
             .padding()
 

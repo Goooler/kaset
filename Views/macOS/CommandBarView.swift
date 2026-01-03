@@ -75,6 +75,7 @@ struct CommandBarView: View {
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Clear input")
                 }
             }
             .padding(.horizontal, 16)
@@ -830,8 +831,8 @@ struct CommandBarView: View {
 
     /// Fetches songs from a playlist by ID.
     private func fetchPlaylistSongs(playlistId: String) async throws -> [Song] {
-        let detail = try await client.getPlaylist(id: playlistId)
-        return Array(detail.tracks.prefix(25))
+        let response = try await client.getPlaylist(id: playlistId)
+        return Array(response.detail.tracks.prefix(25))
     }
 
     /// Builds search terms from intent components, including mood synonyms.
