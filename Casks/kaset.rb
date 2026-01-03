@@ -1,8 +1,8 @@
 cask "kaset" do
-  version "0.4.0"
-  sha256 "eb98f09350b034fb7e0f2a047e74c3d773d79f05d18ee7afef792ed5c36985e9"
+  version "0.4.1"
+  sha256 "e63d0d61bb6d0c2c5a61db54fd10606a1816b70e822c867588d0a301a5dd49b1"
 
-  url "https://github.com/sozercan/kaset/releases/download/v0.4.0/kaset-v0.4.0.dmg"
+  url "https://github.com/sozercan/kaset/releases/download/v0.4.1/kaset-v0.4.1.dmg"
   name "Kaset"
   desc "Native macOS YouTube Music client"
   homepage "https://github.com/sozercan/kaset"
