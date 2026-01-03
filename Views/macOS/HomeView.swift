@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// Home view displaying personalized content sections.
-@available(macOS 26.0, *)
 struct HomeView: View {
     @State var viewModel: HomeViewModel
     @Environment(PlayerService.self) private var playerService
@@ -26,7 +25,7 @@ struct HomeView: View {
                         HomeLoadingView()
                     case .loaded, .loadingMore:
                         self.contentView
-                    case let .error(error):
+                    case .error(let error):
                         ErrorView(error: error) {
                             Task { await self.viewModel.refresh() }
                         }
@@ -70,9 +69,12 @@ struct HomeView: View {
                 }
 
                 // API sections
-                ForEach(Array(self.viewModel.sections.enumerated()), id: \.element.id) { index, section in
+                ForEach(Array(self.viewModel.sections.enumerated()), id: \.element.id) {
+                    index, section in
                     self.sectionView(section)
-                        .staggeredAppearance(index: self.favoritesManager.isVisible ? index + 1 : index)
+                        .staggeredAppearance(
+                            index: self.favoritesManager.isVisible ? index + 1 : index
+                        )
                         .task {
                             await self.prefetchImagesAsync(for: section)
                         }
@@ -92,7 +94,8 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 16) {
                     if section.isChart {
-                        ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
+                        ForEach(Array(section.items.enumerated()), id: \.element.id) {
+                            index, item in
                             HomeSectionItemCard(item: item, rank: index + 1) {
                                 self.playItem(item, in: section, at: index)
                             }
@@ -101,7 +104,8 @@ struct HomeView: View {
                             }
                         }
                     } else {
-                        ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
+                        ForEach(Array(section.items.enumerated()), id: \.element.id) {
+                            index, item in
                             HomeSectionItemCard(item: item) {
                                 self.playItem(item, in: section, at: index)
                             }
@@ -118,9 +122,11 @@ struct HomeView: View {
     // MARK: - Context Menu
 
     @ViewBuilder
-    private func contextMenuItems(for item: HomeSectionItem, in _: HomeSection, at _: Int) -> some View {
+    private func contextMenuItems(for item: HomeSectionItem, in _: HomeSection, at _: Int)
+        -> some View
+    {
         switch item {
-        case let .song(song):
+        case .song(let song):
             Button {
                 Task { await self.playerService.play(song: song) }
             } label: {
@@ -161,7 +167,7 @@ struct HomeView: View {
                 }
             }
 
-        case let .album(album):
+        case .album(let album):
             Button {
                 self.playItem(item, in: HomeSection(id: "", title: "", items: []), at: 0)
             } label: {
@@ -174,7 +180,7 @@ struct HomeView: View {
 
             ShareContextMenu.menuItem(for: album)
 
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             Button {
                 self.navigationPath.append(playlist)
             } label: {
@@ -189,7 +195,7 @@ struct HomeView: View {
 
             ShareContextMenu.menuItem(for: playlist)
 
-        case let .artist(artist):
+        case .artist(let artist):
             Button {
                 self.navigationPath.append(artist)
             } label: {
@@ -226,15 +232,15 @@ struct HomeView: View {
 
     private func playItem(_ item: HomeSectionItem, in _: HomeSection, at _: Int) {
         switch item {
-        case let .song(song):
+        case .song(let song):
             // Play the song and fetch similar songs (radio queue) in the background
             Task {
                 await self.playerService.playWithRadio(song: song)
             }
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             // Navigate to playlist detail
             self.navigationPath.append(playlist)
-        case let .album(album):
+        case .album(let album):
             // For now, we'll create a playlist-like navigation for albums
             // In a full implementation, we'd have an AlbumDetailView
             let playlist = Playlist(
@@ -246,7 +252,7 @@ struct HomeView: View {
                 author: album.artistsDisplay
             )
             self.navigationPath.append(playlist)
-        case let .artist(artist):
+        case .artist(let artist):
             // Navigate to artist detail
             self.navigationPath.append(artist)
         }

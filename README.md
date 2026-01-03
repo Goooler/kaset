@@ -25,7 +25,7 @@ A native macOS YouTube Music client built with Swift and SwiftUI.
 ## Requirements
 
 - macOS 26.0 or later
-- [Google](https://accounts.google.com) account
+- [YouTube Music Premium](https://www.youtube.com/musicpremium) subscription
 
 ## Installation
 
@@ -37,13 +37,13 @@ Download the latest release from the [Releases](https://github.com/sozercan/kase
 
 ```bash
 brew tap sozercan/kaset https://github.com/sozercan/kaset
-brew install --cask kaset
+brew install --cask kaset --no-quarantine
 ```
 
-> **Note:** The app is not signed.
-> If you downloaded the app manually, you can clear extended attributes (including quarantine) with:
+> **Note:** The `--no-quarantine` flag is required because the app is not signed.
+> If you downloaded the app manually, you can remove the quarantine attribute with:
 > ```bash
-> xattr -cr /Applications/Kaset.app
+> xattr -d com.apple.quarantine /Applications/Kaset.app
 > ```
 
 ## Keyboard Shortcuts

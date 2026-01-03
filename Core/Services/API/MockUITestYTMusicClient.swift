@@ -12,8 +12,6 @@ final class MockUITestYTMusicClient: YTMusicClientProtocol {
     var hasMoreMoodsAndGenresSections: Bool { false }
     var hasMoreNewReleasesSections: Bool { false }
     var hasMorePodcastsSections: Bool { false }
-    var hasMoreLikedSongs: Bool { false }
-    var hasMorePlaylistTracks: Bool { false }
 
     // MARK: - Mock Data
 
@@ -99,62 +97,6 @@ final class MockUITestYTMusicClient: YTMusicClientProtocol {
         return self.searchResults.songs
     }
 
-    func searchSongsWithPagination(query _: String) async throws -> SearchResponse {
-        try? await Task.sleep(for: .milliseconds(100))
-        return SearchResponse(
-            songs: self.searchResults.songs,
-            albums: [],
-            artists: [],
-            playlists: [],
-            continuationToken: nil
-        )
-    }
-
-    func searchAlbums(query _: String) async throws -> SearchResponse {
-        try? await Task.sleep(for: .milliseconds(100))
-        return SearchResponse(
-            songs: [],
-            albums: self.searchResults.albums,
-            artists: [],
-            playlists: [],
-            continuationToken: nil
-        )
-    }
-
-    func searchArtists(query _: String) async throws -> SearchResponse {
-        try? await Task.sleep(for: .milliseconds(100))
-        return SearchResponse(
-            songs: [],
-            albums: [],
-            artists: self.searchResults.artists,
-            playlists: [],
-            continuationToken: nil
-        )
-    }
-
-    func searchPlaylists(query _: String) async throws -> SearchResponse {
-        try? await Task.sleep(for: .milliseconds(100))
-        return SearchResponse(
-            songs: [],
-            albums: [],
-            artists: [],
-            playlists: self.searchResults.playlists,
-            continuationToken: nil
-        )
-    }
-
-    func getSearchContinuation() async throws -> SearchResponse? {
-        nil
-    }
-
-    var hasMoreSearchResults: Bool {
-        false
-    }
-
-    func clearSearchContinuation() {
-        // No-op for mock
-    }
-
     func getSearchSuggestions(query: String) async throws -> [SearchSuggestion] {
         try? await Task.sleep(for: .milliseconds(50))
         return [
@@ -169,16 +111,12 @@ final class MockUITestYTMusicClient: YTMusicClientProtocol {
         return self.playlists
     }
 
-    func getLikedSongs() async throws -> LikedSongsResponse {
+    func getLikedSongs() async throws -> [Song] {
         try? await Task.sleep(for: .milliseconds(100))
-        return LikedSongsResponse(songs: self.likedSongs, continuationToken: nil)
+        return self.likedSongs
     }
 
-    func getLikedSongsContinuation() async throws -> LikedSongsResponse? {
-        nil
-    }
-
-    func getPlaylist(id: String) async throws -> PlaylistTracksResponse {
+    func getPlaylist(id: String) async throws -> PlaylistDetail {
         try? await Task.sleep(for: .milliseconds(100))
         let playlist = self.playlists.first { $0.id == id } ?? Playlist(
             id: id,
@@ -188,21 +126,11 @@ final class MockUITestYTMusicClient: YTMusicClientProtocol {
             trackCount: 10,
             author: "Test User"
         )
-        let detail = PlaylistDetail(
+        return PlaylistDetail(
             playlist: playlist,
             tracks: Self.defaultSongs(count: 10),
             duration: "30 minutes"
         )
-        return PlaylistTracksResponse(detail: detail, continuationToken: nil)
-    }
-
-    func getPlaylistContinuation() async throws -> PlaylistContinuationResponse? {
-        nil
-    }
-
-    func getPlaylistAllTracks(playlistId _: String) async throws -> [Song] {
-        try? await Task.sleep(for: .milliseconds(100))
-        return Self.defaultSongs(count: 50)
     }
 
     func getArtist(id: String) async throws -> ArtistDetail {

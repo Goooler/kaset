@@ -164,23 +164,117 @@ swiftlint --strict && swiftformat .
 
 ### Liquid Glass UI (macOS 26+)
 
-> See [docs/architecture.md#ui-design-macos-26](docs/architecture.md#ui-design-macos-26) for detailed patterns.
+The app uses Apple's Liquid Glass design language for macOS 26:
 
-**Quick Rules**:
-- Use `.glassEffect(.regular.interactive(), in: .capsule)` for interactive elements
-- Wrap multiple glass elements in `GlassEffectContainer`
-- Add `PlayerBar` via `safeAreaInset` to every navigable view
-- Avoid glass-on-glass (no `.buttonStyle(.glass)` inside glass containers)
+```swift
+// Player bar with liquid glass capsule
+HStack { /* controls */ }
+    .glassEffect(.regular.interactive(), in: .capsule)
+
+// Wrap multiple glass elements in a container
+GlassEffectContainer(spacing: 0) {
+    // Glass elements here
+}
+
+// Materialize transition for appearing panels
+QueueView()
+    .glassEffectTransition(.materialize)
+
+// Glass effect ID for morphing support
+.glassEffectID("queue", in: playerNamespace)
+
+// Glass search field
+TextField("Search...", text: $query)
+    .glassEffect(.regular, in: .capsule)
+```
+
+**Liquid Glass Anti-Patterns** (avoid these):
+- ❌ `.buttonStyle(.glass)` on buttons inside a glass container (causes rectangles)
+- ❌ `glassEffectUnion` on buttons already in a glass capsule (glass-on-glass)
+- ❌ Glass effects on content areas (lists, tables, media)
+- ❌ Custom opacity that bypasses accessibility
+
+**Implemented Glass Effects**:
+- `PlayerBar` — glass capsule with namespace for morphing
+- `Sidebar` — wrapped in `GlassEffectContainer`
+- `QueueView` / `LyricsView` — `.glassEffectTransition(.materialize)`
+- `SearchView` — glass search field and suggestions dropdown
+```
+
+**PlayerBar Pattern**:
+- Each view that can be navigated to must include the `PlayerBar` via `safeAreaInset`
+- The `PlayerBar` floats at the bottom of the content area (not sidebar)
+- Uses `.glassEffect(.regular.interactive(), in: .capsule)` for the liquid glass look
+- Uses `@Namespace` for glass effect morphing support
+
+```swift
+// Add to every navigable view
+.safeAreaInset(edge: .bottom, spacing: 0) {
+    PlayerBar()
+}
+```
+
+**Key Views requiring PlayerBar**:
+- `HomeView` (on NavigationStack)
+- `LibraryView` (on NavigationStack)
+- `SearchView` (on VStack)
+- `PlaylistDetailView` (on Group)
 
 ### Swift Testing (Preferred)
 
-> ✅ **Use Swift Testing for all new unit tests** — See [docs/testing.md](docs/testing.md) and [ADR-0006](docs/adr/0006-swift-testing-migration.md) for full patterns.
+> ✅ **Use Swift Testing for all new unit tests** — See [ADR-0006](docs/adr/0006-swift-testing-migration.md) for details.
 
-**Quick Reference**:
-- Use `@Suite struct` + `@Test func` (not XCTest)
-- Use `#expect(a == b)` (not `XCTAssertEqual`)
-- Use `.serialized` for `@MainActor` test suites
-- Keep performance tests (`measure {}`) and UI tests in XCTest
+Swift Testing is 4x faster than XCTest and provides cleaner syntax. Use it for all new tests except:
+- **Performance tests** — Keep in XCTest (requires `measure {}`)
+- **UI tests** — Keep in XCTest (requires XCUIApplication)
+
+| XCTest | Swift Testing |
+|--------|---------------|
+| `import XCTest` | `import Testing` |
+| `class ... : XCTestCase` | `@Suite struct ...` |
+| `func testFoo()` | `@Test func foo()` |
+| `XCTAssertEqual(a, b)` | `#expect(a == b)` |
+| `XCTAssertTrue(x)` | `#expect(x)` |
+| `XCTAssertNil(x)` | `#expect(x == nil)` |
+| `XCTFail("msg")` | `Issue.record("msg")` |
+| `setUp()` / `tearDown()` | `init()` (ARC handles cleanup) |
+
+**Pattern for `@MainActor` tests:**
+
+```swift
+import Testing
+@testable import Kaset
+
+@Suite(.serialized)  // Required for @MainActor
+@MainActor
+struct MyServiceTests {
+    let service: MyService
+    let mockClient: MockYTMusicClient
+
+    init() {
+        mockClient = MockYTMusicClient()
+        service = MyService(client: mockClient)
+    }
+
+    @Test("Does something correctly")
+    func doesSomething() async {
+        await service.doSomething()
+        #expect(service.state == .done)
+    }
+}
+```
+
+**Parameterized tests** — Use for multiple input cases:
+
+```swift
+@Test("Status raw values", arguments: [
+    (LikeStatus.liked, "LIKE"),
+    (LikeStatus.disliked, "DISLIKE"),
+])
+func statusRawValues(status: LikeStatus, expected: String) {
+    #expect(status.rawValue == expected)
+}
+```
 
 ### Swift Concurrency
 
@@ -214,15 +308,13 @@ swiftlint --strict && swiftformat .
 
 ## Quick Reference
 
-> See [docs/testing.md](docs/testing.md) for full test commands and patterns.
-
 ### Build Commands
 
 ```bash
 # Build
 xcodebuild -scheme Kaset -destination 'platform=macOS' build
 
-# Unit Tests
+# Unit Tests (run separately from UI tests)
 xcodebuild -scheme Kaset -destination 'platform=macOS' test -only-testing:KasetTests
 
 # Lint & Format
@@ -233,21 +325,72 @@ swiftlint --strict && swiftformat .
 
 > ⚠️ **NEVER run unit tests and UI tests together** — Always execute them separately.
 
-**UI Tests** — Ask permission first, run ONE at a time:
+**Unit Tests (`KasetTests`)**:
 ```bash
+xcodebuild -scheme Kaset -destination 'platform=macOS' test -only-testing:KasetTests
+```
+
+**UI Tests (`KasetUITests`)** — Run ONE test at a time:
+```bash
+# Run a single UI test
 xcodebuild -scheme Kaset -destination 'platform=macOS' test \
   -only-testing:KasetUITests/TestClassName/testMethodName
 ```
 
-## Architecture Overview
+**UI Test Workflow**:
+1. Run ONE UI test at a time
+2. If it fails, fix the issue before proceeding
+3. Verify the fix by re-running that specific test
+4. Only move to the next UI test after the current one passes
 
-> See [docs/architecture.md](docs/architecture.md) and [docs/playback.md](docs/playback.md) for detailed flows.
+This prevents cascading failures and makes debugging significantly easier.
 
-**Key Concepts**:
-- **Singleton WebView** for playback (DRM requires WebKit)
-- **Background audio** via `windowShouldClose` returning `false` (hides instead of closes)
-- **Cookie-based auth** with `__Secure-3PAPISID` extracted from WebView
-- **API-first** — use `YTMusicClient` for data, WebView only for playback/auth
+### Playback Architecture
+
+```
+User clicks Play
+    │
+    ▼
+PlayerService.play(videoId:)
+    │
+    ├── Sets pendingPlayVideoId
+    └── Shows mini player toast (160×90)
+            │
+            ▼
+    SingletonPlayerWebView.shared
+            │
+            ├── One WebView for entire app
+            ├── Loads music.youtube.com/watch?v={id}
+            └── JS bridge sends state updates
+                    │
+                    ▼
+            PlayerService updates:
+            - isPlaying
+            - progress
+            - duration
+```
+
+### Background Audio
+
+```
+Close window (⌘W) → Window hides → Audio continues
+Click dock icon    → Window shows → Same WebView
+Quit app (⌘Q)     → App terminates → Audio stops
+```
+
+### Authentication
+
+```
+App Launch → Check cookies → __Secure-3PAPISID exists?
+    │                              │
+    │ No                           │ Yes
+    ▼                              ▼
+Show LoginSheet              AuthService.loggedIn
+    │
+    │ User signs in
+    ▼
+Observer detects cookie → Dismiss sheet
+```
 
 ## Performance Checklist
 
@@ -259,6 +402,12 @@ Before completing non-trivial features, verify:
 - [ ] Parsers have `measure {}` tests if processing large payloads
 - [ ] Images use `ImageCache` (not loading inline)
 - [ ] Search input is debounced (not firing on every keystroke)
+
+Run performance tests:
+```bash
+xcodebuild test -scheme Kaset -destination 'platform=macOS' \
+  -only-testing:KasetTests/ParserPerformanceTests
+```
 
 ## Task Planning: Phases with Exit Criteria
 

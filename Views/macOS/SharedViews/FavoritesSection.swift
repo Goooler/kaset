@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 
 /// A horizontal scrolling section displaying pinned Favorites items.
 /// Supports drag-and-drop reordering and context menu actions.
-@available(macOS 26.0, *)
 struct FavoritesSection: View {
     @Environment(PlayerService.self) private var playerService
     @Environment(FavoritesManager.self) private var favoritesManager
@@ -51,11 +50,11 @@ struct FavoritesSection: View {
 
     private func handleTap(_ item: FavoriteItem) {
         switch item.itemType {
-        case let .song(song):
+        case .song(let song):
             Task {
                 await self.playerService.playWithRadio(song: song)
             }
-        case let .album(album):
+        case .album(let album):
             let playlist = Playlist(
                 id: album.id,
                 title: album.title,
@@ -65,18 +64,18 @@ struct FavoritesSection: View {
                 author: album.artistsDisplay
             )
             self.onNavigate?(playlist)
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             self.onNavigate?(playlist)
-        case let .artist(artist):
+        case .artist(let artist):
             self.onNavigate?(artist)
         }
     }
 
     private func handleDrop(_ droppedItems: [FavoriteItem], on target: FavoriteItem) -> Bool {
         guard let droppedItem = droppedItems.first,
-              let sourceIndex = favoritesManager.items.firstIndex(of: droppedItem),
-              let targetIndex = favoritesManager.items.firstIndex(of: target),
-              sourceIndex != targetIndex
+            let sourceIndex = favoritesManager.items.firstIndex(of: droppedItem),
+            let targetIndex = favoritesManager.items.firstIndex(of: target),
+            sourceIndex != targetIndex
         else {
             return false
         }
@@ -92,7 +91,7 @@ struct FavoritesSection: View {
     @ViewBuilder
     private func contextMenu(for item: FavoriteItem) -> some View {
         // Play button for songs
-        if case let .song(song) = item.itemType {
+        if case .song(let song) = item.itemType {
             Button {
                 Task { await self.playerService.play(song: song) }
             } label: {
@@ -162,7 +161,7 @@ struct FavoritesSection: View {
 
         // Navigation to related content
         switch item.itemType {
-        case let .song(song):
+        case .song(let song):
             if let artist = song.artists.first, !artist.id.isEmpty, !artist.id.contains("-") {
                 Button {
                     self.onNavigate?(artist)
@@ -195,7 +194,6 @@ struct FavoritesSection: View {
 // MARK: - FavoriteItemCard
 
 /// A card view for a single Favorites item.
-@available(macOS 26.0, *)
 private struct FavoriteItemCard: View {
     let item: FavoriteItem
     let onTap: () -> Void
@@ -218,7 +216,9 @@ private struct FavoriteItemCard: View {
                 self.isHovering = hovering
             }
         }
-        .accessibilityLabel("\(self.item.title), \(self.item.typeLabel), \(self.item.subtitle ?? "")")
+        .accessibilityLabel(
+            "\(self.item.title), \(self.item.typeLabel), \(self.item.subtitle ?? "")"
+        )
         .accessibilityHint("Drag to reorder")
     }
 

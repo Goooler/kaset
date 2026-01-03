@@ -1,10 +1,14 @@
-import FoundationModels
 import SwiftUI
+
+#if canImport(FoundationModels)
+    import FoundationModels
+#endif
 
 // MARK: - CommandBarView
 
 /// A floating command bar for natural language music control.
 /// Accessible via Cmd+K, allows users to control playback with voice-like commands.
+/// Note: This view uses FoundationModels for AI features on macOS 26+.
 @available(macOS 26.0, *)
 struct CommandBarView: View {
     @Environment(PlayerService.self) private var playerService
@@ -71,7 +75,6 @@ struct CommandBarView: View {
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Clear input")
                 }
             }
             .padding(.horizontal, 16)
@@ -294,10 +297,12 @@ struct CommandBarView: View {
         let searchTool = MusicSearchTool(client: self.client)
         let queueTool = QueueTool(playerService: self.playerService)
 
-        guard let session = FoundationModelsService.shared.createCommandSession(
-            instructions: self.aiSystemInstructions,
-            tools: [searchTool, queueTool]
-        ) else {
+        guard
+            let session = FoundationModelsService.shared.createCommandSession(
+                instructions: self.aiSystemInstructions,
+                tools: [searchTool, queueTool]
+            )
+        else {
             self.errorMessage = "Could not create AI session"
             self.isProcessing = false
             return
@@ -313,16 +318,18 @@ struct CommandBarView: View {
             let localizedDesc = error.localizedDescription
             let combinedDesc = "\(errorDescription) \(localizedDesc)"
 
-            let isDeserializationError = combinedDesc.contains("deserialize") ||
-                combinedDesc.contains("Generable") ||
-                combinedDesc.contains("generation") ||
-                combinedDesc.contains("GenericError")
+            let isDeserializationError =
+                combinedDesc.contains("deserialize") || combinedDesc.contains("Generable")
+                || combinedDesc.contains("generation") || combinedDesc.contains("GenericError")
 
             if isDeserializationError {
                 // Fallback: use the query directly as a search
-                self.logger.info("AI generation failed, falling back to direct search for: \(query)")
+                self.logger.info(
+                    "AI generation failed, falling back to direct search for: \(query)")
                 await self.fallbackDirectSearch(query: query)
-            } else if let message = AIErrorHandler.handleAndMessage(error, context: "command processing") {
+            } else if let message = AIErrorHandler.handleAndMessage(
+                error, context: "command processing")
+            {
                 // Use centralized error handler for other errors
                 self.errorMessage = message
             } else {
@@ -481,8 +488,8 @@ struct CommandBarView: View {
         // Match patterns like "80s", "90s", "2000s"
         let decadePattern = #"(19)?(20)?\d0s"#
         if let regex = try? NSRegularExpression(pattern: decadePattern),
-           let match = regex.firstMatch(in: query, range: NSRange(query.startIndex..., in: query)),
-           let range = Range(match.range, in: query)
+            let match = regex.firstMatch(in: query, range: NSRange(query.startIndex..., in: query)),
+            let range = Range(match.range, in: query)
         {
             let decade = String(query[range])
             // If query has filler words, return clean decade search
@@ -527,7 +534,8 @@ struct CommandBarView: View {
         self.logger.info("Executing intent: \(intent.action.rawValue)")
         self.logger.info("  Raw query: \(intent.query)")
         self.logger.info("  Artist: \(intent.artist), Genre: \(intent.genre), Mood: \(intent.mood)")
-        self.logger.info("  Era: \(intent.era), Version: \(intent.version), Activity: \(intent.activity)")
+        self.logger.info(
+            "  Era: \(intent.era), Version: \(intent.version), Activity: \(intent.activity)")
         self.logger.info("  Built search query: \(searchQuery)")
         self.logger.info("  Content source: \(contentSource)")
 
@@ -538,7 +546,9 @@ struct CommandBarView: View {
                 await self.playerService.resume()
                 self.resultMessage = "Resuming playback"
             } else {
-                await self.playContent(intent: intent, query: searchQuery, description: description, source: contentSource)
+                await self.playContent(
+                    intent: intent, query: searchQuery, description: description,
+                    source: contentSource)
             }
 
         case .queue:
@@ -547,7 +557,9 @@ struct CommandBarView: View {
                 self.playerService.clearQueue()
                 self.resultMessage = "Queue cleared"
             } else if !searchQuery.isEmpty {
-                await self.queueContent(intent: intent, query: searchQuery, description: description, source: contentSource)
+                await self.queueContent(
+                    intent: intent, query: searchQuery, description: description,
+                    source: contentSource)
             }
 
         case .shuffle:
@@ -610,11 +622,14 @@ struct CommandBarView: View {
             let allSongs = try await client.searchSongs(query: query)
             let songs = Array(allSongs.prefix(20))
 
-            self.logger.info("Songs search returned \(allSongs.count), using top \(songs.count) for query: \(query)")
+            self.logger.info(
+                "Songs search returned \(allSongs.count), using top \(songs.count) for query: \(query)"
+            )
             if let firstSong = songs.first {
                 // Use playQueue to populate the queue with search results
                 await self.playerService.playQueue(songs, startingAt: 0)
-                self.logger.info("Started queue with \(songs.count) songs, first: \(firstSong.title)")
+                self.logger.info(
+                    "Started queue with \(songs.count) songs, first: \(firstSong.title)")
                 // Use description if available for nicer feedback
                 if !description.isEmpty {
                     self.resultMessage = "Playing \(description)"
@@ -636,7 +651,9 @@ struct CommandBarView: View {
             let allSongs = try await client.searchSongs(query: query)
             let songs = Array(allSongs.prefix(10))
 
-            self.logger.info("Queue songs search returned \(allSongs.count), using top \(songs.count) for query: \(query)")
+            self.logger.info(
+                "Queue songs search returned \(allSongs.count), using top \(songs.count) for query: \(query)"
+            )
             if !songs.isEmpty {
                 if self.playerService.queue.isEmpty {
                     // No queue exists, create one with the search results
@@ -644,7 +661,8 @@ struct CommandBarView: View {
                     if !description.isEmpty {
                         self.resultMessage = "Playing \(description)"
                     } else {
-                        self.resultMessage = "Playing \"\(songs.first!.title)\" and \(songs.count - 1) more"
+                        self.resultMessage =
+                            "Playing \"\(songs.first!.title)\" and \(songs.count - 1) more"
                     }
                 } else {
                     // Add all songs to existing queue
@@ -673,13 +691,16 @@ struct CommandBarView: View {
     // MARK: - Content Routing
 
     /// Plays content from the best source based on the intent.
-    private func playContent(intent: MusicIntent, query: String, description: String, source: ContentSource) async {
+    private func playContent(
+        intent: MusicIntent, query: String, description: String, source: ContentSource
+    ) async {
         switch source {
         case .moodsAndGenres:
             // Try to find matching playlist from Moods & Genres
             if let songs = await self.findSongsFromMoodsAndGenres(intent: intent) {
                 await self.playerService.playQueue(songs, startingAt: 0)
-                self.resultMessage = "Playing \(description.isEmpty ? "curated playlist" : description)"
+                self.resultMessage =
+                    "Playing \(description.isEmpty ? "curated playlist" : description)"
             } else {
                 // Fallback to search
                 self.logger.info("No matching Moods & Genres playlist, falling back to search")
@@ -702,16 +723,20 @@ struct CommandBarView: View {
     }
 
     /// Queues content from the best source based on the intent.
-    private func queueContent(intent: MusicIntent, query: String, description: String, source: ContentSource) async {
+    private func queueContent(
+        intent: MusicIntent, query: String, description: String, source: ContentSource
+    ) async {
         switch source {
         case .moodsAndGenres:
             if let songs = await self.findSongsFromMoodsAndGenres(intent: intent) {
                 if self.playerService.queue.isEmpty {
                     await self.playerService.playQueue(songs, startingAt: 0)
-                    self.resultMessage = "Playing \(description.isEmpty ? "curated playlist" : description)"
+                    self.resultMessage =
+                        "Playing \(description.isEmpty ? "curated playlist" : description)"
                 } else {
                     self.playerService.appendToQueue(songs)
-                    self.resultMessage = "Added \(description.isEmpty ? "curated songs" : description) to queue"
+                    self.resultMessage =
+                        "Added \(description.isEmpty ? "curated songs" : description) to queue"
                 }
             } else {
                 await self.queueSearchResult(query: query, description: description)
@@ -750,13 +775,13 @@ struct CommandBarView: View {
                 if self.matchesSearchTerms(section.title, searchTerms) {
                     // Found matching section, get first playlist
                     if let playlistItem = section.items.first(where: { $0.playlist != nil }),
-                       let playlist = playlistItem.playlist
+                        let playlist = playlistItem.playlist
                     {
                         return try await self.fetchPlaylistSongs(playlistId: playlist.id)
                     }
                     // If section has songs directly, use those
                     let songs = section.items.compactMap { item -> Song? in
-                        if case let .song(song) = item { return song }
+                        if case .song(let song) = item { return song }
                         return nil
                     }
                     if !songs.isEmpty {
@@ -788,7 +813,7 @@ struct CommandBarView: View {
             // Look for song sections in charts
             for section in response.sections {
                 let songs = section.items.compactMap { item -> Song? in
-                    if case let .song(song) = item { return song }
+                    if case .song(let song) = item { return song }
                     return nil
                 }
                 if songs.count >= 5 {
@@ -805,8 +830,8 @@ struct CommandBarView: View {
 
     /// Fetches songs from a playlist by ID.
     private func fetchPlaylistSongs(playlistId: String) async throws -> [Song] {
-        let response = try await client.getPlaylist(id: playlistId)
-        return Array(response.detail.tracks.prefix(25))
+        let detail = try await client.getPlaylist(id: playlistId)
+        return Array(detail.tracks.prefix(25))
     }
 
     /// Builds search terms from intent components, including mood synonyms.
@@ -826,7 +851,8 @@ struct CommandBarView: View {
             terms.append(intent.activity.lowercased())
         }
         if !intent.query.isEmpty {
-            terms.append(contentsOf: intent.query.lowercased().split(separator: " ").map { String($0) })
+            terms.append(
+                contentsOf: intent.query.lowercased().split(separator: " ").map { String($0) })
         }
 
         return terms
@@ -879,6 +905,7 @@ private struct SuggestionChip: View {
     }
 }
 
+@available(macOS 26.0, *)
 #Preview {
     @Previewable @State var isPresented = true
     let authService = AuthService()

@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// Settings view for general app preferences.
-@available(macOS 26.0, *)
 struct GeneralSettingsView: View {
     @Environment(AuthService.self) private var authService
     @State private var settings = SettingsManager.shared
@@ -39,7 +38,9 @@ struct GeneralSettingsView: View {
                 .padding(.vertical, 4)
 
                 // Now Playing Notifications
-                Toggle("Show Now Playing Notifications", isOn: self.$settings.showNowPlayingNotifications)
+                Toggle(
+                    "Show Now Playing Notifications",
+                    isOn: self.$settings.showNowPlayingNotifications)
 
                 // Haptic Feedback
                 Toggle("Haptic Feedback", isOn: self.$settings.hapticFeedbackEnabled)
@@ -82,9 +83,11 @@ struct GeneralSettingsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Software Update")
                         if let lastCheck = self.updaterService.lastUpdateCheckDate {
-                            Text("Last checked: \(lastCheck, format: .relative(presentation: .named))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            Text(
+                                "Last checked: \(lastCheck, format: .relative(presentation: .named))"
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         } else {
                             Text("Never checked")
                                 .font(.caption)
@@ -139,7 +142,8 @@ struct GeneralSettingsView: View {
     }
 
     private var appVersion: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        let version =
+            Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
         return build.isEmpty ? version : "\(version) (\(build))"
     }

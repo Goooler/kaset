@@ -3,7 +3,6 @@ import SwiftUI
 // MARK: - QueueView
 
 /// Right sidebar panel displaying the playback queue.
-@available(macOS 26.0, *)
 struct QueueView: View {
     @Environment(PlayerService.self) private var playerService
     @Environment(FavoritesManager.self) private var favoritesManager
@@ -21,7 +20,7 @@ struct QueueView: View {
         }
         .frame(minWidth: 280, maxWidth: 280)
         .background(.background.opacity(0.95))
-        .glassEffectTransition(.materialize)
+        .glassEffectTransitionCompatible()
         .accessibilityIdentifier(AccessibilityID.Queue.container)
     }
 
@@ -86,7 +85,8 @@ struct QueueView: View {
     private var queueListView: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(Array(self.playerService.queue.enumerated()), id: \.element.videoId) { index, song in
+                ForEach(Array(self.playerService.queue.enumerated()), id: \.element.videoId) {
+                    index, song in
                     QueueRowView(
                         song: song,
                         isCurrentTrack: index == self.playerService.currentIndex,
@@ -112,7 +112,6 @@ struct QueueView: View {
 
 // MARK: - QueueRowView
 
-@available(macOS 26.0, *)
 private struct QueueRowView: View {
     let song: Song
     let isCurrentTrack: Bool
@@ -153,10 +152,13 @@ private struct QueueRowView: View {
                         .lineLimit(1)
                         .foregroundStyle(self.isCurrentTrack ? .red : .primary)
 
-                    Text(self.song.artistsDisplay.isEmpty ? "Unknown Artist" : self.song.artistsDisplay)
-                        .font(.system(size: 11))
-                        .lineLimit(1)
-                        .foregroundStyle(.secondary)
+                    Text(
+                        self.song.artistsDisplay.isEmpty
+                            ? "Unknown Artist" : self.song.artistsDisplay
+                    )
+                    .font(.system(size: 11))
+                    .lineLimit(1)
+                    .foregroundStyle(.secondary)
                 }
 
                 Spacer()

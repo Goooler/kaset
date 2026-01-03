@@ -1,9 +1,13 @@
-import FoundationModels
 import SwiftUI
+
+#if canImport(FoundationModels)
+    import FoundationModels
+#endif
 
 // MARK: - PlaylistDetailView
 
 /// Detail view for a playlist showing its tracks.
+/// Note: This view uses FoundationModels for AI features on macOS 26+.
 @available(macOS 26.0, *)
 struct PlaylistDetailView: View {
     let playlist: Playlist
@@ -55,17 +59,20 @@ struct PlaylistDetailView: View {
                         Task { await self.viewModel.load() }
                     }
                 }
-            case let .error(error):
+            case .error(let error):
                 ErrorView(error: error) {
                     Task { await self.viewModel.load() }
                 }
             }
         }
-        .accentBackground(from: self.viewModel.playlistDetail?.thumbnailURL?.highQualityThumbnailURL)
+        .accentBackground(
+            from: self.viewModel.playlistDetail?.thumbnailURL?.highQualityThumbnailURL
+        )
         .navigationTitle(self.playlist.title)
         .toolbarBackgroundVisibility(.hidden, for: .automatic)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if case .error = self.viewModel.loadingState {} else {
+            if case .error = self.viewModel.loadingState {
+            } else {
                 PlayerBar()
             }
         }
@@ -172,7 +179,8 @@ struct PlaylistDetailView: View {
                     } label: {
                         Label(
                             currentlyInLibrary ? "Added to Library" : "Add to Library",
-                            systemImage: currentlyInLibrary ? "checkmark.circle.fill" : "plus.circle"
+                            systemImage: currentlyInLibrary
+                                ? "checkmark.circle.fill" : "plus.circle"
                         )
                     }
                     .buttonStyle(.bordered)
@@ -187,7 +195,7 @@ struct PlaylistDetailView: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.large)
-                        .requiresIntelligence()
+                        .requiresIntelligenceCompatible()
                     }
 
                     // Track count
@@ -213,29 +221,12 @@ struct PlaylistDetailView: View {
             ForEach(tracks.indices, id: \.self) { index in
                 let track = tracks[index]
                 self.trackRow(track, index: index, tracks: tracks, isAlbum: isAlbum)
-                    .onAppear {
-                        // Load more when reaching the last few items
-                        if index >= tracks.count - 3, self.viewModel.hasMore {
-                            Task { await self.viewModel.loadMore() }
-                        }
-                    }
 
                 if index < tracks.count - 1 {
                     Divider()
                         // For albums: 28 (index) + 12 (spacing)
                         // For playlists: 28 (index) + 12 (spacing) + 40 (thumbnail) + 16 (spacing)
                         .padding(.leading, isAlbum ? 40 : 96)
-                }
-            }
-
-            // Loading indicator for pagination
-            if self.viewModel.loadingState == .loadingMore {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .controlSize(.small)
-                        .padding()
-                    Spacer()
                 }
             }
         }
@@ -277,7 +268,10 @@ struct PlaylistDetailView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.title)
                         .font(.system(size: 14))
-                        .foregroundStyle(self.playerService.currentTrack?.videoId == track.videoId ? .red : .primary)
+                        .foregroundStyle(
+                            self.playerService.currentTrack?.videoId == track.videoId
+                                ? .red : .primary
+                        )
                         .lineLimit(1)
 
                     Text(track.artistsDisplay)
@@ -329,7 +323,9 @@ struct PlaylistDetailView: View {
             Divider()
 
             // Go to Artist - show first artist with valid ID
-            if let artist = track.artists.first(where: { $0.hasNavigableId }) {
+            if let artist = track.artists.first(where: {
+                !$0.id.isEmpty && $0.id != UUID().uuidString
+            }) {
                 NavigationLink(value: artist) {
                     Label("Go to Artist", systemImage: "person")
                 }
@@ -372,10 +368,12 @@ struct PlaylistDetailView: View {
         HapticService.success()
         Task {
             if currentlyInLibrary {
-                await SongActionsHelper.removePlaylistFromLibrary(self.playlist, client: self.viewModel.client)
+                await SongActionsHelper.removePlaylistFromLibrary(
+                    self.playlist, client: self.viewModel.client)
                 self.isAddedToLibrary = false
             } else {
-                await SongActionsHelper.addPlaylistToLibrary(self.playlist, client: self.viewModel.client)
+                await SongActionsHelper.addPlaylistToLibrary(
+                    self.playlist, client: self.viewModel.client)
                 self.isAddedToLibrary = true
             }
         }
@@ -390,18 +388,21 @@ struct PlaylistDetailView: View {
         self.logger.info("Refining playlist with prompt: \(prompt)")
 
         let instructions = """
-        You are a music playlist curator. Analyze songs and suggest changes based on the request.
+            You are a music playlist curator. Analyze songs and suggest changes based on the request.
 
-        IMPORTANT RULES:
-        - A "duplicate" means the EXACT same video ID appears twice. Different versions/covers
-          of a song by different artists are NOT duplicates.
-        - "Last Christmas" by Wham! and "Last Christmas" by Jimmy Eat World are DIFFERENT songs.
-        - Only suggest removing tracks that truly don't fit the user's criteria.
-        - When in doubt, keep the song.
-        """
+            IMPORTANT RULES:
+            - A "duplicate" means the EXACT same video ID appears twice. Different versions/covers
+              of a song by different artists are NOT duplicates.
+            - "Last Christmas" by Wham! and "Last Christmas" by Jimmy Eat World are DIFFERENT songs.
+            - Only suggest removing tracks that truly don't fit the user's criteria.
+            - When in doubt, keep the song.
+            """
 
         // Use analysis session for creative playlist curation
-        guard let session = FoundationModelsService.shared.createAnalysisSession(instructions: instructions) else {
+        guard
+            let session = FoundationModelsService.shared.createAnalysisSession(
+                instructions: instructions)
+        else {
             self.refineError = "Apple Intelligence is not available"
             self.isRefining = false
             return
@@ -417,12 +418,12 @@ struct PlaylistDetailView: View {
         }.joined(separator: "\n")
 
         let userPrompt = """
-        Playlist (\(tracks.count) songs, showing \(trackLimit)):
+            Playlist (\(tracks.count) songs, showing \(trackLimit)):
 
-        \(trackList)
+            \(trackList)
 
-        Request: \(prompt)
-        """
+            Request: \(prompt)
+            """
 
         do {
             // Use streaming for progressive UI updates
@@ -435,8 +436,8 @@ struct PlaylistDetailView: View {
 
             // Stream complete - convert final partial to complete changes
             if let final = self.partialChanges,
-               let removals = final.removals,
-               let reasoning = final.reasoning
+                let removals = final.removals,
+                let reasoning = final.reasoning
             {
                 self.playlistChanges = PlaylistChanges(
                     removals: removals,
@@ -447,7 +448,8 @@ struct PlaylistDetailView: View {
             }
         } catch {
             // Use centralized error handler for consistent messaging
-            if let message = AIErrorHandler.handleAndMessage(error, context: "playlist refinement") {
+            if let message = AIErrorHandler.handleAndMessage(error, context: "playlist refinement")
+            {
                 self.refineError = message
             }
         }
@@ -487,7 +489,6 @@ private struct RefinePlaylistSheet: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Close")
             }
             .padding()
 
@@ -596,10 +597,13 @@ private struct RefinePlaylistSheet: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            TextField("e.g., Remove slow songs, reorder by energy...", text: self.$promptText, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(3 ... 5)
-                .focused(self.$isPromptFocused)
+            TextField(
+                "e.g., Remove slow songs, reorder by energy...", text: self.$promptText,
+                axis: .vertical
+            )
+            .textFieldStyle(.roundedBorder)
+            .lineLimit(3...5)
+            .focused(self.$isPromptFocused)
 
             if let error = errorMessage {
                 Text(error)
@@ -721,6 +725,7 @@ private struct RefinePlaylistSheet: View {
     }
 }
 
+@available(macOS 26.0, *)
 #Preview {
     let playlist = Playlist(
         id: "test",
@@ -740,4 +745,270 @@ private struct RefinePlaylistSheet: View {
         )
     )
     .environment(PlayerService())
+}
+
+// MARK: - PlaylistDetailViewLegacy (macOS 15)
+
+/// Playlist detail view for macOS 15 without AI refine features.
+struct PlaylistDetailViewLegacy: View {
+    let playlist: Playlist
+    @State var viewModel: PlaylistDetailViewModel
+    @Environment(PlayerService.self) private var playerService
+    @Environment(FavoritesManager.self) private var favoritesManager
+    @Environment(SongLikeStatusManager.self) private var likeStatusManager
+
+    /// Tracks whether this playlist has been added to library in this session.
+    @State private var isAddedToLibrary: Bool = false
+
+    /// Computed property to check if playlist is in library.
+    private var isInLibrary: Bool {
+        LibraryViewModel.shared?.isInLibrary(playlistId: self.playlist.id) ?? false
+    }
+
+    init(playlist: Playlist, viewModel: PlaylistDetailViewModel) {
+        self.playlist = playlist
+        _viewModel = State(initialValue: viewModel)
+    }
+
+    var body: some View {
+        Group {
+            switch self.viewModel.loadingState {
+            case .idle, .loading:
+                LoadingView("Loading playlist...")
+            case .loaded, .loadingMore:
+                if let detail = viewModel.playlistDetail {
+                    self.contentView(detail)
+                } else {
+                    ErrorView(title: "Unable to load playlist", message: "Playlist not found") {
+                        Task { await self.viewModel.load() }
+                    }
+                }
+            case .error(let error):
+                ErrorView(error: error) {
+                    Task { await self.viewModel.load() }
+                }
+            }
+        }
+        .accentBackground(
+            from: self.viewModel.playlistDetail?.thumbnailURL?.highQualityThumbnailURL
+        )
+        .navigationTitle(self.playlist.title)
+        .toolbarBackgroundVisibility(.hidden, for: .automatic)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if case .error = self.viewModel.loadingState {
+            } else {
+                PlayerBar()
+            }
+        }
+        .task {
+            if self.viewModel.loadingState == .idle {
+                await self.viewModel.load()
+            }
+        }
+        .refreshable {
+            await self.viewModel.refresh()
+        }
+    }
+
+    // MARK: - Views
+
+    private func contentView(_ detail: PlaylistDetail) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // Header
+                self.headerView(detail)
+
+                Divider()
+
+                // Tracks
+                self.tracksView(detail.tracks, isAlbum: detail.isAlbum)
+            }
+            .padding(24)
+        }
+    }
+
+    private func headerView(_ detail: PlaylistDetail) -> some View {
+        HStack(alignment: .top, spacing: 20) {
+            // Thumbnail
+            CachedAsyncImage(url: detail.thumbnailURL?.highQualityThumbnailURL) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle()
+                    .fill(.quaternary)
+                    .overlay {
+                        Image(systemName: "music.note.list")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.secondary)
+                    }
+            }
+            .frame(width: 180, height: 180)
+            .clipShape(.rect(cornerRadius: 8))
+            .fadeIn(duration: 0.3)
+
+            // Info
+            VStack(alignment: .leading, spacing: 8) {
+                Text(detail.isAlbum ? "Album" : "Playlist")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Text(detail.title)
+                    .font(.title)
+                    .fontWeight(.bold)
+
+                if let author = detail.author {
+                    Text(author)
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let description = detail.description {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(2)
+                }
+
+                Text("\(detail.tracks.count) songs")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+
+                Spacer()
+
+                // Actions
+                HStack(spacing: 12) {
+                    Button {
+                        Task {
+                            await self.playAll(tracks: detail.tracks)
+                        }
+                    } label: {
+                        Label("Play", systemImage: "play.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+
+                    Button {
+                        Task {
+                            await self.shuffleAll(tracks: detail.tracks)
+                        }
+                    } label: {
+                        Label("Shuffle", systemImage: "shuffle")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+
+                    // Add to Library button (only for playlists not already in library)
+                    if !detail.isAlbum, !self.isInLibrary, !self.isAddedToLibrary {
+                        Button {
+                            Task {
+                                await self.addToLibrary()
+                            }
+                        } label: {
+                            Label("Add to Library", systemImage: "plus")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                    }
+
+                    // Favorite button
+                    Button {
+                        self.toggleFavorite()
+                    } label: {
+                        Image(
+                            systemName: self.favoritesManager.isPinned(playlist: self.playlist)
+                                ? "star.fill" : "star"
+                        )
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func tracksView(_ tracks: [Song], isAlbum: Bool) -> some View {
+        LazyVStack(spacing: 0) {
+            ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
+                self.trackRow(track, index: index, tracks: tracks, isAlbum: isAlbum)
+            }
+        }
+    }
+
+    private func trackRow(_ track: Song, index: Int, tracks: [Song], isAlbum: Bool) -> some View {
+        HStack(spacing: 12) {
+            // Track number or thumbnail
+            if isAlbum {
+                Text("\(index + 1)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30)
+            } else {
+                CachedAsyncImage(url: track.thumbnailURL) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle()
+                        .fill(.quaternary)
+                }
+                .frame(width: 40, height: 40)
+                .clipShape(.rect(cornerRadius: 4))
+            }
+
+            // Track info
+            VStack(alignment: .leading, spacing: 2) {
+                Text(track.title)
+                    .font(.body)
+                    .lineLimit(1)
+
+                Text(track.artistsDisplay)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            // Duration
+            Text(track.durationDisplay)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            Task {
+                await self.playerService.playQueue(tracks, startingAt: index)
+            }
+        }
+        .contextMenu {
+            LikeDislikeContextMenu(song: track, likeStatusManager: self.likeStatusManager)
+            ShareContextMenu.menuItem(for: track)
+            FavoritesContextMenu.menuItem(for: track, manager: self.favoritesManager)
+        }
+    }
+
+    // MARK: - Actions
+
+    private func playAll(tracks: [Song]) async {
+        await self.playerService.playQueue(tracks, startingAt: 0)
+    }
+
+    private func shuffleAll(tracks: [Song]) async {
+        let shuffled = tracks.shuffled()
+        await self.playerService.playQueue(shuffled, startingAt: 0)
+    }
+
+    private func addToLibrary() async {
+        await SongActionsHelper.addPlaylistToLibrary(
+            self.playlist, client: self.viewModel.client)
+        self.isAddedToLibrary = true
+    }
+
+    private func toggleFavorite() {
+        self.favoritesManager.toggle(playlist: self.playlist)
+    }
 }

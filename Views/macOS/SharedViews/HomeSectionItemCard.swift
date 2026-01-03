@@ -3,7 +3,6 @@ import SwiftUI
 // MARK: - HomeSectionItemCard
 
 /// Reusable card view for home section items (songs, playlists, albums, artists).
-@available(macOS 26.0, *)
 struct HomeSectionItemCard: View {
     let item: HomeSectionItem
     let rank: Int?
@@ -60,7 +59,10 @@ struct HomeSectionItemCard: View {
             Text("\(rank)")
                 .font(.system(size: 32, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
-                .shadow(color: Color(nsColor: .windowBackgroundColor).opacity(0.8), radius: 4, x: 0, y: 1)
+                .shadow(
+                    color: Color(nsColor: .windowBackgroundColor).opacity(0.8), radius: 4, x: 0,
+                    y: 1
+                )
                 .padding(.leading, 8)
                 .padding(.bottom, 60)
         }
@@ -129,10 +131,10 @@ struct HomeSectionItemCard: View {
     /// Uses API-provided color (from description) for mood cards, or title-based hash.
     private var gradientForItem: LinearGradient {
         // Check if this is a mood card with color in description
-        if case let .playlist(playlist) = item,
-           let colorHex = playlist.description,
-           colorHex.hasPrefix("#"),
-           let color = Color(hex: colorHex)
+        if case .playlist(let playlist) = item,
+            let colorHex = playlist.description,
+            colorHex.hasPrefix("#"),
+            let color = Color(hex: colorHex)
         {
             // Create a gradient from the API color
             return LinearGradient(

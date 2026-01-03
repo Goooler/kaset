@@ -3,7 +3,6 @@ import SwiftUI
 // MARK: - SearchView
 
 /// Search view for finding music.
-@available(macOS 26.0, *)
 struct SearchView: View {
     @State var viewModel: SearchViewModel
     @Environment(PlayerService.self) private var playerService
@@ -65,7 +64,7 @@ struct SearchView: View {
                 // Suggestions dropdown
                 if self.viewModel.showSuggestions {
                     self.suggestionsDropdown
-                        .padding(.top, 44) // Below search field
+                        .padding(.top, 44)  // Below search field
                 }
             }
 
@@ -96,9 +95,10 @@ struct SearchView: View {
                 .onSubmit {
                     HapticService.success()
                     if self.selectedSuggestionIndex >= 0,
-                       self.selectedSuggestionIndex < self.viewModel.suggestions.count
+                        self.selectedSuggestionIndex < self.viewModel.suggestions.count
                     {
-                        self.viewModel.selectSuggestion(self.viewModel.suggestions[self.selectedSuggestionIndex])
+                        self.viewModel.selectSuggestion(
+                            self.viewModel.suggestions[self.selectedSuggestionIndex])
                     } else {
                         self.viewModel.search()
                     }
@@ -140,12 +140,13 @@ struct SearchView: View {
             }
         }
         .padding(10)
-        .glassEffect(.regular, in: .capsule)
+        .glassEffectCapsuleCompatible()
     }
 
     private var suggestionsDropdown: some View {
         VStack(spacing: 0) {
-            ForEach(Array(self.viewModel.suggestions.prefix(7).enumerated()), id: \.element.id) { index, suggestion in
+            ForEach(Array(self.viewModel.suggestions.prefix(7).enumerated()), id: \.element.id) {
+                index, suggestion in
                 self.suggestionRow(suggestion, index: index)
                 if index < min(self.viewModel.suggestions.count, 7) - 1 {
                     Divider()
@@ -153,8 +154,8 @@ struct SearchView: View {
                 }
             }
         }
-        .glassEffect(.regular, in: .rect(cornerRadius: 8))
-        .glassEffectTransition(.materialize)
+        .glassEffectRoundedRectCompatible(cornerRadius: 8)
+        .glassEffectTransitionCompatible()
         .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
     }
 
@@ -179,7 +180,10 @@ struct SearchView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(index == self.selectedSuggestionIndex ? Color.accentColor.opacity(0.15) : Color.clear)
+            .background(
+                index == self.selectedSuggestionIndex
+                    ? Color.accentColor.opacity(0.15) : Color.clear
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -205,7 +209,10 @@ struct SearchView: View {
                 .font(.system(size: 12, weight: .medium))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(self.viewModel.selectedFilter == filter ? Color.accentColor : Color.secondary.opacity(0.2))
+                .background(
+                    self.viewModel.selectedFilter == filter
+                        ? Color.accentColor : Color.secondary.opacity(0.2)
+                )
                 .foregroundStyle(self.viewModel.selectedFilter == filter ? .white : .primary)
                 .clipShape(.capsule)
         }
@@ -235,7 +242,7 @@ struct SearchView: View {
                 } else {
                     self.resultsView
                 }
-            case let .error(error):
+            case .error(let error):
                 ErrorView(error: error) {
                     self.viewModel.search()
                 }
@@ -249,9 +256,12 @@ struct SearchView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.tertiary)
 
-            Text(self.viewModel.query.isEmpty ? "Search for your favorite music" : "Press Enter to search")
-                .font(.title3)
-                .foregroundStyle(.secondary)
+            Text(
+                self.viewModel.query.isEmpty
+                    ? "Search for your favorite music" : "Press Enter to search"
+            )
+            .font(.title3)
+            .foregroundStyle(.secondary)
 
             Text("Find songs, albums, artists, and playlists")
                 .font(.subheadline)
@@ -280,50 +290,14 @@ struct SearchView: View {
     private var resultsView: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(Array(self.viewModel.filteredItems.enumerated()), id: \.element.id) { index, item in
+                ForEach(self.viewModel.filteredItems.indices, id: \.self) { index in
+                    let item = self.viewModel.filteredItems[index]
                     self.resultRow(item, index: index)
                     Divider()
                         .padding(.leading, 72)
                 }
-
-                // Load more indicator / button
-                if self.viewModel.hasMoreResults {
-                    self.loadMoreView
-                }
             }
             .padding(.vertical, 8)
-        }
-    }
-
-    /// Load more view that triggers pagination when visible.
-    private var loadMoreView: some View {
-        Group {
-            if self.viewModel.loadingState == .loadingMore {
-                HStack {
-                    ProgressView()
-                        .controlSize(.small)
-                    Text("Loading more...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-            } else {
-                Button {
-                    Task { await self.viewModel.loadMore() }
-                } label: {
-                    Text("Load More")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                }
-                .buttonStyle(.plain)
-                .onAppear {
-                    // Auto-load more when this view appears (infinite scroll)
-                    Task { await self.viewModel.loadMore() }
-                }
-            }
         }
     }
 
@@ -395,7 +369,7 @@ struct SearchView: View {
     @ViewBuilder
     private func contextMenuItems(for item: SearchResultItem) -> some View {
         switch item {
-        case let .song(song):
+        case .song(let song):
             Button {
                 Task { await self.playerService.play(song: song) }
             } label: {
@@ -425,7 +399,9 @@ struct SearchView: View {
             Divider()
 
             // Go to Artist - show first artist with valid ID
-            if let artist = song.artists.first(where: { $0.hasNavigableId }) {
+            if let artist = song.artists.first(where: {
+                !$0.id.isEmpty && $0.id != UUID().uuidString
+            }) {
                 NavigationLink(value: artist) {
                     Label("Go to Artist", systemImage: "person")
                 }
@@ -446,7 +422,7 @@ struct SearchView: View {
                 }
             }
 
-        case let .album(album):
+        case .album(let album):
             Button {
                 let playlist = Playlist(
                     id: album.id,
@@ -467,7 +443,7 @@ struct SearchView: View {
 
             ShareContextMenu.menuItem(for: album)
 
-        case let .artist(artist):
+        case .artist(let artist):
             Button {
                 self.navigationPath.append(artist)
             } label: {
@@ -480,10 +456,11 @@ struct SearchView: View {
 
             ShareContextMenu.menuItem(for: artist)
 
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             Button {
                 Task {
-                    await SongActionsHelper.addPlaylistToLibrary(playlist, client: self.viewModel.client)
+                    await SongActionsHelper.addPlaylistToLibrary(
+                        playlist, client: self.viewModel.client)
                 }
             } label: {
                 Label("Add to Library", systemImage: "plus.circle")
@@ -524,14 +501,14 @@ struct SearchView: View {
 
     private func handleItemTap(_ item: SearchResultItem) {
         switch item {
-        case let .song(song):
+        case .song(let song):
             // Play the song and fetch similar songs (radio queue) in the background
             Task {
                 await self.playerService.playWithRadio(song: song)
             }
-        case let .artist(artist):
+        case .artist(let artist):
             self.navigationPath.append(artist)
-        case let .album(album):
+        case .album(let album):
             // Navigate as playlist for now
             let playlist = Playlist(
                 id: album.id,
@@ -542,7 +519,7 @@ struct SearchView: View {
                 author: album.artistsDisplay
             )
             self.navigationPath.append(playlist)
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             self.navigationPath.append(playlist)
         }
     }

@@ -3,7 +3,6 @@ import SwiftUI
 // MARK: - CassetteIcon
 
 /// A custom cassette tape icon view.
-@available(macOS 26.0, *)
 struct CassetteIcon: View {
     let size: CGFloat
 

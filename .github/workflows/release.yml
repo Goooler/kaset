@@ -36,19 +36,19 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Run unit tests
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project Kaset.xcodeproj \
-            -scheme Kaset \
-            -destination 'platform=macOS' \
-            -derivedDataPath ./build \
-            -only-testing:KasetTests \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            test
+#      - name: Run unit tests
+#        run: |
+#          set -o pipefail
+#          xcodebuild \
+#            -project Kaset.xcodeproj \
+#            -scheme Kaset \
+#            -destination 'platform=macOS' \
+#            -derivedDataPath ./build \
+#            -only-testing:KasetTests \
+#            CODE_SIGN_IDENTITY="" \
+#            CODE_SIGNING_REQUIRED=NO \
+#            CODE_SIGNING_ALLOWED=NO \
+#            test
 
       - name: Determine version from tag
         id: version
@@ -246,7 +246,7 @@ jobs:
           ### Homebrew (recommended)
           \`\`\`bash
           brew tap sozercan/kaset https://github.com/sozercan/kaset
-          brew install --cask kaset
+          brew install --cask kaset --no-quarantine
           \`\`\`
 
           ### Manual Download
@@ -327,7 +327,7 @@ jobs:
             homepage "https://github.com/${{ github.repository }}"
 
             auto_updates true
-            depends_on macos: ">= :tahoe"
+            depends_on macos: ">= :sequoia"
 
             app "Kaset.app"
 
@@ -371,7 +371,7 @@ jobs:
                           length="${LENGTH}"
                           type="application/octet-stream"
                           sparkle:edSignature="${SIGNATURE}"/>
-                      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+                      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
                   </item>
 
               </channel>

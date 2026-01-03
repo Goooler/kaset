@@ -107,13 +107,12 @@ Makes authenticated requests to YouTube Music's internal API:
 - Delegates response parsing to modular parsers
 
 **Endpoints**:
-- `getHome()` → Home page sections (with pagination via `getHomeContinuation()`)
+- `getHome()` → Home page sections
 - `getExplore()` → Explore page (new releases, charts, moods)
 - `search(query:)` → Search results
 - `getLibraryPlaylists()` → User's playlists
-- `getLikedSongs()` → User's liked songs (with pagination via `getLikedSongsContinuation()`)
-- `getPlaylist(id:)` → Playlist details (with pagination via `getPlaylistContinuation()`)
-- `getPlaylistAllTracks(playlistId:)` → All tracks via queue API (for radio playlists)
+- `getLikedSongs()` → User's liked songs
+- `getPlaylist(id:)` → Playlist details
 - `getArtist(id:)` → Artist details with songs and albums
 - `getLyrics(videoId:)` → Lyrics for a track (two-step: next → browse)
 - `rateSong(videoId:rating:)` → Like/dislike a song
@@ -133,11 +132,8 @@ Response parsing is extracted into specialized modules:
 | `ParsingHelpers.swift` | Shared utilities (thumbnails, artists, duration) |
 | `HomeResponseParser.swift` | Home/Explore page sections |
 | `SearchResponseParser.swift` | Search results |
-| `PlaylistParser.swift` | Playlist details, library playlists, queue tracks, pagination |
+| `PlaylistParser.swift` | Playlist details, library playlists |
 | `ArtistParser.swift` | Artist details (songs, albums, subscription status) |
-| `RadioQueueParser.swift` | Radio queue from "next" endpoint |
-| `SongMetadataParser.swift` | Full song metadata with feedback tokens |
-| `LyricsParser.swift` | Lyrics extraction |
 
 **Design**: Static enum-based parsers with pure functions for testability.
 

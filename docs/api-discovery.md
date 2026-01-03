@@ -82,12 +82,10 @@ Browse endpoints use `POST /browse` with a `browseId` parameter.
 | `FEmusic_home` | Home | 🌐 | Personalized recommendations, mixes, quick picks | `HomeResponseParser` |
 | `FEmusic_explore` | Explore | 🌐 | New releases, charts, moods shortcuts | `HomeResponseParser` |
 | `FEmusic_liked_playlists` | Library Playlists | 🔐 | User's saved/created playlists | `PlaylistParser` |
-| `VLLM` | Liked Songs | 🔐 | All songs user has liked (with pagination) | `PlaylistParser` |
+| `FEmusic_liked_videos` | Liked Songs | 🔐 | Songs user has liked | `PlaylistParser` |
 | `VL{playlistId}` | Playlist Detail | 🌐 | Playlist tracks and metadata | `PlaylistParser` |
 | `UC{channelId}` | Artist Detail | 🌐 | Artist page with songs, albums | `ArtistParser` |
 | `MPLYt{id}` | Lyrics | 🌐 | Song lyrics text | Custom parser |
-
-> **Note**: `VLLM` is a special case of `VL{playlistId}` where `LM` is the Liked Music playlist ID. Do NOT use `FEmusic_liked_videos` — it returns only ~13 songs without pagination.
 
 #### Home (`FEmusic_home`)
 
@@ -141,22 +139,14 @@ let body = ["browseId": "FEmusic_liked_playlists"]
 
 ---
 
-#### Liked Songs (`VLLM`)
-
-> ⚠️ **Use `VLLM`, not `FEmusic_liked_videos`** — The `FEmusic_liked_videos` browse ID returns only ~13 songs with NO continuation token. To fetch all liked songs, use `VLLM` (VL prefix + LM playlist ID) which returns the full list with proper pagination.
+#### Liked Songs (`FEmusic_liked_videos`)
 
 ```swift
-// ✅ Correct: Use VLLM for all liked songs
-let body = ["browseId": "VLLM"]
+let body = ["browseId": "FEmusic_liked_videos"]
 // Requires authentication
-
-// ❌ Avoid: FEmusic_liked_videos is limited to ~13 songs
-// let body = ["browseId": "FEmusic_liked_videos"]
 ```
 
-**Returns**: Playlist-format response with all liked songs and continuation token for pagination
-
-**Parser**: Uses `PlaylistParser.parsePlaylistWithContinuation()` (same as regular playlists)
+**Returns**: Playlist-format response with all liked songs
 
 ---
 
@@ -451,11 +441,7 @@ let body = ["videoId": "dQw4w9WgXcQ"]
 #### Get Queue (`music/get_queue`)
 
 ```swift
-// Get metadata for specific videos
 let body = ["videoIds": ["dQw4w9WgXcQ", "fJ9rUzIMcZQ"]]
-
-// OR get ALL tracks for a playlist (bypasses pagination!)
-let body = ["playlistId": "RDCLAK5uy_l2pHac-aawJYLcesgTf67gaKU-B9ekk1o"]
 ```
 
 **Response** (works WITHOUT auth! - verified):
@@ -464,19 +450,15 @@ let body = ["playlistId": "RDCLAK5uy_l2pHac-aawJYLcesgTf67gaKU-B9ekk1o"]
   "responseContext": {...},
   "queueDatas": [{
     "content": {
-      "playlistPanelVideoWrapperRenderer": {
-        "primaryRenderer": {
-          "playlistPanelVideoRenderer": {
-            "title": {"runs": [{"text": "Never Gonna Give You Up"}]},
-            "longBylineText": {...},
-            "thumbnail": {...},
-            "lengthText": {...},
-            "videoId": "dQw4w9WgXcQ",
-            "shortBylineText": {...},
-            "menu": {...},
-            "navigationEndpoint": {...}
-          }
-        }
+      "playlistPanelVideoRenderer": {
+        "title": {"runs": [{"text": "Never Gonna Give You Up"}]},
+        "longBylineText": {...},
+        "thumbnail": {...},
+        "lengthText": {...},
+        "videoId": "dQw4w9WgXcQ",
+        "shortBylineText": {...},
+        "menu": {...},
+        "navigationEndpoint": {...}
       }
     }
   }],
@@ -484,17 +466,12 @@ let body = ["playlistId": "RDCLAK5uy_l2pHac-aawJYLcesgTf67gaKU-B9ekk1o"]
 }
 ```
 
-> ⚠️ **Note**: The response uses a **wrapper structure** (`playlistPanelVideoWrapperRenderer.primaryRenderer.playlistPanelVideoRenderer`) 
-> rather than a direct `playlistPanelVideoRenderer`. Parsers must handle this wrapper.
-
 **playlistPanelVideoRenderer keys** (verified):
 - `title`, `longBylineText`, `thumbnail`, `lengthText`
 - `selected`, `navigationEndpoint`, `videoId`, `shortBylineText`
 - `trackingParams`, `menu`
 
-**Use cases**:
-- Get metadata for multiple videos in one call (queue display)
-- **Fetch ALL tracks for radio playlists** (RDCLAK prefix) where browse pagination is broken
+**Use case**: Get metadata for multiple videos in one call (essential for queue display).
 
 ---
 

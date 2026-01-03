@@ -3,7 +3,6 @@ import SwiftUI
 // MARK: - FavoritesContextMenu
 
 /// Shared context menu items for adding/removing items from Favorites.
-@available(macOS 26.0, *)
 @MainActor
 enum FavoritesContextMenu {
     /// Creates a context menu button for toggling a song in/out of Favorites.
@@ -66,13 +65,13 @@ enum FavoritesContextMenu {
     @ViewBuilder
     static func menuItem(for item: HomeSectionItem, manager: FavoritesManager) -> some View {
         switch item {
-        case let .song(song):
+        case .song(let song):
             Self.menuItem(for: song, manager: manager)
-        case let .album(album):
+        case .album(let album):
             Self.menuItem(for: album, manager: manager)
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             Self.menuItem(for: playlist, manager: manager)
-        case let .artist(artist):
+        case .artist(let artist):
             Self.menuItem(for: artist, manager: manager)
         }
     }
@@ -81,13 +80,13 @@ enum FavoritesContextMenu {
     @ViewBuilder
     static func menuItem(for item: SearchResultItem, manager: FavoritesManager) -> some View {
         switch item {
-        case let .song(song):
+        case .song(let song):
             Self.menuItem(for: song, manager: manager)
-        case let .album(album):
+        case .album(let album):
             Self.menuItem(for: album, manager: manager)
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             Self.menuItem(for: playlist, manager: manager)
-        case let .artist(artist):
+        case .artist(let artist):
             Self.menuItem(for: artist, manager: manager)
         }
     }

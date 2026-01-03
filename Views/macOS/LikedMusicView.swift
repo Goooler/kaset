@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// View displaying the user's liked songs.
-@available(macOS 26.0, *)
 struct LikedMusicView: View {
     @State var viewModel: LikedMusicViewModel
     @Environment(PlayerService.self) private var playerService
@@ -27,7 +26,7 @@ struct LikedMusicView: View {
                         LoadingView("Loading liked songs...")
                     case .loaded, .loadingMore:
                         self.contentView
-                    case let .error(error):
+                    case .error(let error):
                         ErrorView(error: error) {
                             Task { await self.viewModel.refresh() }
                         }
@@ -53,13 +52,23 @@ struct LikedMusicView: View {
                     ))
             }
             .navigationDestination(for: Playlist.self) { playlist in
-                PlaylistDetailView(
-                    playlist: playlist,
-                    viewModel: PlaylistDetailViewModel(
+                if #available(macOS 26.0, *) {
+                    PlaylistDetailView(
                         playlist: playlist,
-                        client: self.viewModel.client
+                        viewModel: PlaylistDetailViewModel(
+                            playlist: playlist,
+                            client: self.viewModel.client
+                        )
                     )
-                )
+                } else {
+                    PlaylistDetailViewLegacy(
+                        playlist: playlist,
+                        viewModel: PlaylistDetailViewModel(
+                            playlist: playlist,
+                            client: self.viewModel.client
+                        )
+                    )
+                }
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -92,26 +101,9 @@ struct LikedMusicView: View {
                     ForEach(self.viewModel.songs.indices, id: \.self) { index in
                         let song = self.viewModel.songs[index]
                         self.songRow(song, index: index)
-                            .onAppear {
-                                // Load more when reaching the last few items
-                                if index >= self.viewModel.songs.count - 3, self.viewModel.hasMore {
-                                    Task { await self.viewModel.loadMore() }
-                                }
-                            }
                         if index < self.viewModel.songs.count - 1 {
                             Divider()
                                 .padding(.leading, 72)
-                        }
-                    }
-
-                    // Loading indicator for pagination
-                    if self.viewModel.loadingState == .loadingMore {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                                .controlSize(.small)
-                                .padding()
-                            Spacer()
                         }
                     }
                 }
@@ -276,7 +268,9 @@ struct LikedMusicView: View {
             Divider()
 
             // Go to Artist - show first artist with valid ID
-            if let artist = song.artists.first(where: { $0.hasNavigableId }) {
+            if let artist = song.artists.first(where: {
+                !$0.id.isEmpty && $0.id != UUID().uuidString
+            }) {
                 NavigationLink(value: artist) {
                     Label("Go to Artist", systemImage: "person")
                 }
