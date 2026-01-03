@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// View displaying the user's liked songs.
-@available(macOS 26.0, *)
 struct LikedMusicView: View {
     @State var viewModel: LikedMusicViewModel
     @Environment(PlayerService.self) private var playerService
@@ -27,7 +26,7 @@ struct LikedMusicView: View {
                         LoadingView("Loading liked songs...")
                     case .loaded, .loadingMore:
                         self.contentView
-                    case let .error(error):
+                    case .error(let error):
                         ErrorView(error: error) {
                             Task { await self.viewModel.refresh() }
                         }
@@ -53,13 +52,23 @@ struct LikedMusicView: View {
                     ))
             }
             .navigationDestination(for: Playlist.self) { playlist in
-                PlaylistDetailView(
-                    playlist: playlist,
-                    viewModel: PlaylistDetailViewModel(
+                if #available(macOS 26.0, *) {
+                    PlaylistDetailView(
                         playlist: playlist,
-                        client: self.viewModel.client
+                        viewModel: PlaylistDetailViewModel(
+                            playlist: playlist,
+                            client: self.viewModel.client
+                        )
                     )
-                )
+                } else {
+                    PlaylistDetailViewLegacy(
+                        playlist: playlist,
+                        viewModel: PlaylistDetailViewModel(
+                            playlist: playlist,
+                            client: self.viewModel.client
+                        )
+                    )
+                }
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {

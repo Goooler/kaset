@@ -55,7 +55,8 @@ enum SongActionsHelper {
             await LibraryViewModel.shared?.refresh()
             DiagnosticsLogger.api.info("Added playlist to library: \(playlist.title)")
         } catch {
-            DiagnosticsLogger.api.error("Failed to add playlist to library: \(error.localizedDescription)")
+            DiagnosticsLogger.api.error(
+                "Failed to add playlist to library: \(error.localizedDescription)")
         }
     }
 
@@ -70,7 +71,8 @@ enum SongActionsHelper {
             await LibraryViewModel.shared?.refresh()
             DiagnosticsLogger.api.info("Removed playlist from library: \(playlist.title)")
         } catch {
-            DiagnosticsLogger.api.error("Failed to remove playlist from library: \(error.localizedDescription)")
+            DiagnosticsLogger.api.error(
+                "Failed to remove playlist from library: \(error.localizedDescription)")
         }
     }
 }
@@ -78,7 +80,6 @@ enum SongActionsHelper {
 // MARK: - LikeDislikeContextMenu
 
 /// Reusable context menu items for like/dislike actions.
-@available(macOS 26.0, *)
 struct LikeDislikeContextMenu: View {
     let song: Song
     let likeStatusManager: SongLikeStatusManager
@@ -101,13 +102,15 @@ struct LikeDislikeContextMenu: View {
             // Only show Dislike if not already liked
             if self.likeStatusManager.isDisliked(self.song) {
                 Button {
-                    SongActionsHelper.undislikeSong(self.song, likeStatusManager: self.likeStatusManager)
+                    SongActionsHelper.undislikeSong(
+                        self.song, likeStatusManager: self.likeStatusManager)
                 } label: {
                     Label("Remove Dislike", systemImage: "hand.thumbsdown.fill")
                 }
             } else {
                 Button {
-                    SongActionsHelper.dislikeSong(self.song, likeStatusManager: self.likeStatusManager)
+                    SongActionsHelper.dislikeSong(
+                        self.song, likeStatusManager: self.likeStatusManager)
                 } label: {
                     Label("Dislike", systemImage: "hand.thumbsdown")
                 }

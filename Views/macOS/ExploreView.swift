@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// Explore view displaying new releases, charts, and moods & genres.
-@available(macOS 26.0, *)
 struct ExploreView: View {
     @State var viewModel: ExploreViewModel
     @Environment(PlayerService.self) private var playerService
@@ -24,7 +23,7 @@ struct ExploreView: View {
                         LoadingView("Loading explore content...")
                     case .loaded, .loadingMore:
                         self.contentView
-                    case let .error(error):
+                    case .error(let error):
                         ErrorView(error: error) {
                             Task { await self.viewModel.refresh() }
                         }
@@ -73,13 +72,15 @@ struct ExploreView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 16) {
                     if section.isChart {
-                        ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
+                        ForEach(Array(section.items.enumerated()), id: \.element.id) {
+                            index, item in
                             HomeSectionItemCard(item: item, rank: index + 1) {
                                 self.playItem(item, in: section, at: index)
                             }
                         }
                     } else {
-                        ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
+                        ForEach(Array(section.items.enumerated()), id: \.element.id) {
+                            index, item in
                             HomeSectionItemCard(item: item) {
                                 self.playItem(item, in: section, at: index)
                             }
@@ -94,14 +95,14 @@ struct ExploreView: View {
 
     private func playItem(_ item: HomeSectionItem, in _: HomeSection, at _: Int) {
         switch item {
-        case let .song(song):
+        case .song(let song):
             // Play the song and fetch similar songs (radio queue) in the background
             Task {
                 await self.playerService.playWithRadio(song: song)
             }
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             self.navigationPath.append(playlist)
-        case let .album(album):
+        case .album(let album):
             let playlist = Playlist(
                 id: album.id,
                 title: album.title,
@@ -111,7 +112,7 @@ struct ExploreView: View {
                 author: album.artistsDisplay
             )
             self.navigationPath.append(playlist)
-        case let .artist(artist):
+        case .artist(let artist):
             self.navigationPath.append(artist)
         }
     }

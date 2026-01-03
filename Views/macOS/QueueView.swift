@@ -3,7 +3,6 @@ import SwiftUI
 // MARK: - QueueView
 
 /// Right sidebar panel displaying the playback queue.
-@available(macOS 26.0, *)
 struct QueueView: View {
     @Environment(PlayerService.self) private var playerService
     @Environment(FavoritesManager.self) private var favoritesManager
@@ -13,7 +12,7 @@ struct QueueView: View {
     @Namespace private var queueNamespace
 
     var body: some View {
-        GlassEffectContainer(spacing: 0) {
+        VStack(spacing: 0) {
             VStack(spacing: 0) {
                 // Header
                 self.headerView
@@ -25,10 +24,9 @@ struct QueueView: View {
                 self.contentView
             }
             .frame(width: 280)
-            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
-            .glassEffectID("queuePanel", in: self.queueNamespace)
         }
-        .glassEffectTransition(.materialize)
+        .background(.ultraThinMaterial, in: .rect(cornerRadius: 20))
+        .glassEffectTransitionCompatible()
         .accessibilityIdentifier(AccessibilityID.Queue.container)
     }
 
@@ -93,7 +91,8 @@ struct QueueView: View {
     private var queueListView: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
-                ForEach(Array(self.playerService.queue.enumerated()), id: \.element.videoId) { index, song in
+                ForEach(Array(self.playerService.queue.enumerated()), id: \.element.videoId) {
+                    index, song in
                     QueueRowView(
                         song: song,
                         isCurrentTrack: index == self.playerService.currentIndex,
@@ -119,7 +118,6 @@ struct QueueView: View {
 
 // MARK: - QueueRowView
 
-@available(macOS 26.0, *)
 private struct QueueRowView: View {
     let song: Song
     let isCurrentTrack: Bool
@@ -160,10 +158,13 @@ private struct QueueRowView: View {
                         .lineLimit(1)
                         .foregroundStyle(self.isCurrentTrack ? .red : .primary)
 
-                    Text(self.song.artistsDisplay.isEmpty ? "Unknown Artist" : self.song.artistsDisplay)
-                        .font(.system(size: 11))
-                        .lineLimit(1)
-                        .foregroundStyle(.secondary)
+                    Text(
+                        self.song.artistsDisplay.isEmpty
+                            ? "Unknown Artist" : self.song.artistsDisplay
+                    )
+                    .font(.system(size: 11))
+                    .lineLimit(1)
+                    .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -231,7 +232,6 @@ private struct QueueRowView: View {
     }
 }
 
-@available(macOS 26.0, *)
 #Preview("Queue View") {
     let playerService = PlayerService()
     QueueView()
@@ -240,7 +240,6 @@ private struct QueueRowView: View {
         .frame(height: 600)
 }
 
-@available(macOS 26.0, *)
 #Preview("Queue View with Items") {
     let playerService = PlayerService()
     // Note: In real use, queue would be populated via playQueue()

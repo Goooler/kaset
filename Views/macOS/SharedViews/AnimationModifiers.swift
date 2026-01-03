@@ -35,7 +35,6 @@ private enum AnimationCache {
 
 /// A view modifier that animates content appearance with a staggered delay.
 /// Tracks already-animated items to avoid re-triggering animations on reappear.
-@available(macOS 26.0, *)
 struct StaggeredAppearanceModifier: ViewModifier {
     let index: Int
     let animation: Animation
@@ -80,7 +79,6 @@ struct StaggeredAppearanceModifier: ViewModifier {
     }
 }
 
-@available(macOS 26.0, *)
 extension View {
     /// Applies a staggered appearance animation based on item index.
     /// - Parameters:
@@ -98,7 +96,6 @@ extension View {
 // MARK: - FadeInModifier
 
 /// A view modifier for smooth fade-in transitions.
-@available(macOS 26.0, *)
 struct FadeInModifier: ViewModifier {
     @State private var opacity: Double = 0
 
@@ -120,7 +117,6 @@ struct FadeInModifier: ViewModifier {
     }
 }
 
-@available(macOS 26.0, *)
 extension View {
     /// Fades in the view when it appears.
     /// - Parameters:
@@ -136,7 +132,6 @@ extension View {
 
 /// A view modifier that applies a pulsing scale animation.
 /// Uses TimelineView for smooth, stutter-free continuous animation.
-@available(macOS 26.0, *)
 struct PulseModifier: ViewModifier {
     var minScale: CGFloat = 0.97
     var maxScale: CGFloat = 1.0
@@ -153,7 +148,9 @@ struct PulseModifier: ViewModifier {
                 let phase = elapsed.truncatingRemainder(dividingBy: self.duration * 2)
                 let progress = phase / (self.duration * 2)
                 // Smooth sinusoidal oscillation between minScale and maxScale
-                let scale = self.minScale + (self.maxScale - self.minScale) * (0.5 + 0.5 * sin(progress * 2 * .pi))
+                let scale =
+                    self.minScale + (self.maxScale - self.minScale)
+                    * (0.5 + 0.5 * sin(progress * 2 * .pi))
                 content
                     .scaleEffect(scale)
             }
@@ -163,7 +160,6 @@ struct PulseModifier: ViewModifier {
     }
 }
 
-@available(macOS 26.0, *)
 extension View {
     /// Applies a subtle pulsing animation.
     /// - Parameters:
@@ -187,7 +183,7 @@ extension View {
     VStack(spacing: 24) {
         // Staggered appearance
         VStack(alignment: .leading) {
-            ForEach(0 ..< 3, id: \.self) { index in
+            ForEach(0..<3, id: \.self) { index in
                 Text("Item \(index)")
                     .padding()
                     .background(.quaternary)

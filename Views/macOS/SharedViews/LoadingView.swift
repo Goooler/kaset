@@ -83,7 +83,7 @@ struct LoadingView: View {
     private var skeletonContent: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 32) {
-                ForEach(0 ..< self.skeletonSectionCount, id: \.self) { _ in
+                ForEach(0..<self.skeletonSectionCount, id: \.self) { _ in
                     SkeletonSectionView()
                 }
             }
@@ -96,12 +96,11 @@ struct LoadingView: View {
 // MARK: - HomeLoadingView
 
 /// A specialized loading view for the home screen with skeleton sections.
-@available(macOS 26.0, *)
 struct HomeLoadingView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 32) {
-                ForEach(0 ..< 4, id: \.self) { index in
+                ForEach(0..<4, id: \.self) { index in
                     SkeletonSectionView()
                         .fadeIn(delay: Double(index) * 0.1)
                 }

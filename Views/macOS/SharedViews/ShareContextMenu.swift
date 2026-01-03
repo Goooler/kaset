@@ -5,7 +5,6 @@ import SwiftUI
 
 /// Shared context menu items for sharing items via NSSharingServicePicker.
 /// Uses native macOS sharing services for proper popup positioning in context menus.
-@available(macOS 26.0, *)
 @MainActor
 enum ShareContextMenu {
     /// Shows the share picker at the current mouse location.
@@ -16,9 +15,11 @@ enum ShareContextMenu {
         let mouseLocation = NSEvent.mouseLocation
 
         // Find the window under the mouse
-        guard let window = NSApp.windows.first(where: { window in
-            window.isVisible && window.frame.contains(mouseLocation)
-        }) else {
+        guard
+            let window = NSApp.windows.first(where: { window in
+                window.isVisible && window.frame.contains(mouseLocation)
+            })
+        else {
             // Fallback: use key window
             guard let keyWindow = NSApp.keyWindow else { return }
             let windowPoint = keyWindow.convertPoint(fromScreen: mouseLocation)
@@ -94,13 +95,13 @@ enum ShareContextMenu {
     @ViewBuilder
     static func menuItem(for item: HomeSectionItem) -> some View {
         switch item {
-        case let .song(song):
+        case .song(let song):
             Self.menuItem(for: song)
-        case let .album(album):
+        case .album(let album):
             Self.menuItem(for: album)
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             Self.menuItem(for: playlist)
-        case let .artist(artist):
+        case .artist(let artist):
             Self.menuItem(for: artist)
         }
     }
@@ -109,13 +110,13 @@ enum ShareContextMenu {
     @ViewBuilder
     static func menuItem(for item: SearchResultItem) -> some View {
         switch item {
-        case let .song(song):
+        case .song(let song):
             Self.menuItem(for: song)
-        case let .album(album):
+        case .album(let album):
             Self.menuItem(for: album)
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             Self.menuItem(for: playlist)
-        case let .artist(artist):
+        case .artist(let artist):
             Self.menuItem(for: artist)
         }
     }
@@ -124,13 +125,13 @@ enum ShareContextMenu {
     @ViewBuilder
     static func menuItem(for item: FavoriteItem) -> some View {
         switch item.itemType {
-        case let .song(song):
+        case .song(let song):
             Self.menuItem(for: song)
-        case let .album(album):
+        case .album(let album):
             Self.menuItem(for: album)
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             Self.menuItem(for: playlist)
-        case let .artist(artist):
+        case .artist(let artist):
             Self.menuItem(for: artist)
         }
     }

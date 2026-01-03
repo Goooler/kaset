@@ -4,7 +4,6 @@ import SwiftUI
 
 /// View modifier that adds common navigation destinations for Playlist, Artist, MoodCategory, and TopSongsDestination.
 /// Note: Lyrics sidebar is handled globally in MainWindow, outside the NavigationSplitView.
-@available(macOS 26.0, *)
 struct NavigationDestinationsModifier: ViewModifier {
     let client: any YTMusicClientProtocol
 
@@ -28,22 +27,10 @@ struct NavigationDestinationsModifier: ViewModifier {
                         )
                     } else {
                         // Fallback - shouldn't happen
-                        PlaylistDetailView(
-                            playlist: playlist,
-                            viewModel: PlaylistDetailViewModel(
-                                playlist: playlist,
-                                client: self.client
-                            )
-                        )
+                        self.playlistDetailView(for: playlist)
                     }
                 } else {
-                    PlaylistDetailView(
-                        playlist: playlist,
-                        viewModel: PlaylistDetailViewModel(
-                            playlist: playlist,
-                            client: self.client
-                        )
-                    )
+                    self.playlistDetailView(for: playlist)
                 }
             }
             .navigationDestination(for: MoodCategory.self) { (category: MoodCategory) in
@@ -64,15 +51,36 @@ struct NavigationDestinationsModifier: ViewModifier {
                 )
             }
             .navigationDestination(for: TopSongsDestination.self) { destination in
-                TopSongsView(viewModel: TopSongsViewModel(
-                    destination: destination,
-                    client: self.client
-                ))
+                TopSongsView(
+                    viewModel: TopSongsViewModel(
+                        destination: destination,
+                        client: self.client
+                    ))
             }
+    }
+
+    @ViewBuilder
+    private func playlistDetailView(for playlist: Playlist) -> some View {
+        if #available(macOS 26.0, *) {
+            PlaylistDetailView(
+                playlist: playlist,
+                viewModel: PlaylistDetailViewModel(
+                    playlist: playlist,
+                    client: self.client
+                )
+            )
+        } else {
+            PlaylistDetailViewLegacy(
+                playlist: playlist,
+                viewModel: PlaylistDetailViewModel(
+                    playlist: playlist,
+                    client: self.client
+                )
+            )
+        }
     }
 }
 
-@available(macOS 26.0, *)
 extension View {
     /// Adds common navigation destinations for Playlist, Artist, MoodCategory, and TopSongsDestination.
     func navigationDestinations(client: any YTMusicClientProtocol) -> some View {

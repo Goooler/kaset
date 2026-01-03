@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// Moods & Genres view for browsing music by mood or genre.
-@available(macOS 26.0, *)
 struct MoodsAndGenresView: View {
     @State var viewModel: MoodsAndGenresViewModel
     @Environment(PlayerService.self) private var playerService
@@ -24,7 +23,7 @@ struct MoodsAndGenresView: View {
                         LoadingView("Loading moods & genres...")
                     case .loaded, .loadingMore:
                         self.contentView
-                    case let .error(error):
+                    case .error(let error):
                         ErrorView(error: error) {
                             Task { await self.viewModel.refresh() }
                         }
@@ -96,13 +95,13 @@ struct MoodsAndGenresView: View {
 
     private func playItem(_ item: HomeSectionItem, in _: HomeSection, at _: Int) {
         switch item {
-        case let .song(song):
+        case .song(let song):
             Task {
                 await self.playerService.playWithRadio(song: song)
             }
-        case let .playlist(playlist):
+        case .playlist(let playlist):
             self.navigationPath.append(playlist)
-        case let .album(album):
+        case .album(let album):
             let playlist = Playlist(
                 id: album.id,
                 title: album.title,
@@ -112,7 +111,7 @@ struct MoodsAndGenresView: View {
                 author: album.artistsDisplay
             )
             self.navigationPath.append(playlist)
-        case let .artist(artist):
+        case .artist(let artist):
             self.navigationPath.append(artist)
         }
     }
