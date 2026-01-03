@@ -5,8 +5,22 @@ import SwiftUI
 #endif
 
 /// Right sidebar panel displaying lyrics for the current track.
-/// Uses AI features on macOS 26+, falls back to basic lyrics display on older versions.
+/// Dispatches to the appropriate implementation based on macOS version.
 struct LyricsView: View {
+    let client: any YTMusicClientProtocol
+
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            LyricsViewAI(client: client)
+        } else {
+            LyricsViewLegacy(client: client)
+        }
+    }
+}
+
+/// AI-powered lyrics view for macOS 26+.
+@available(macOS 26.0, *)
+struct LyricsViewAI: View {
     @Environment(PlayerService.self) private var playerService
 
     let client: any YTMusicClientProtocol

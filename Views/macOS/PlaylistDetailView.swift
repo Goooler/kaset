@@ -7,8 +7,23 @@ import SwiftUI
 // MARK: - PlaylistDetailView
 
 /// Detail view for a playlist showing its tracks.
-/// Note: This view uses FoundationModels for AI features on macOS 26+.
+/// Dispatches to the appropriate implementation based on macOS version.
 struct PlaylistDetailView: View {
+    let playlist: Playlist
+    let viewModel: PlaylistDetailViewModel
+
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            PlaylistDetailViewAI(playlist: playlist, viewModel: viewModel)
+        } else {
+            PlaylistDetailViewLegacy(playlist: playlist, viewModel: viewModel)
+        }
+    }
+}
+
+/// AI-powered playlist detail view for macOS 26+.
+@available(macOS 26.0, *)
+struct PlaylistDetailViewAI: View {
     let playlist: Playlist
     @State var viewModel: PlaylistDetailViewModel
     @Environment(PlayerService.self) private var playerService
