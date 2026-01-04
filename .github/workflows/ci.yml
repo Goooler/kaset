@@ -13,7 +13,7 @@ on:
 
 jobs:
   swiftlint:
-    name: SwiftLint
+    name: Swift Lint
     runs-on: macos-26
     timeout-minutes: 10
     steps:
@@ -24,7 +24,7 @@ jobs:
           swiftlint lint --strict --reporter github-actions-logging
 
   swiftformat:
-    name: SwiftFormat
+    name: Swift Format
     runs-on: macos-26
     timeout-minutes: 10
     steps:
@@ -167,6 +167,7 @@ jobs:
 
   # Status check that is required in branch protection rules.
   final-status:
+    name: Final Status
     needs:
       - swiftlint
       - swiftformat
