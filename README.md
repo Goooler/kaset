@@ -83,7 +83,18 @@ open "kaset://play?v=dQw4w9WgXcQ"
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, and coding guidelines.
+This project uses **Swift Package Manager** for dependency management and code organization. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, and coding guidelines.
+
+You can build and test the project using SwiftPM:
+```bash
+# Build the library target
+swift build
+
+# Run unit tests
+swift test --filter KasetTests
+```
+
+Or use Xcode for the full development experience (open `Kaset.xcodeproj` or `Package.swift`).
 
 ## Disclaimer
 Kaset is an unofficial application and not affiliated with YouTube or Google Inc. in any way. "YouTube", "YouTube Music" and the "YouTube Logo" are registered trademarks of Google Inc.
