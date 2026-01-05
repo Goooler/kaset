@@ -12,15 +12,23 @@ Thank you for your interest in contributing! This document provides guidelines a
 
 ### Build & Run
 
+The project uses **Swift Package Manager (SwiftPM)** for dependency management, but can still be built with either `xcodebuild` or `swift`:
+
 ```bash
 # Clone the repository
 git clone https://github.com/sozercan/kaset.git
 cd kaset
 
-# Build from command line
+# Build with SwiftPM (library target only)
+swift build
+
+# Build the full app with xcodebuild
 xcodebuild -scheme Kaset -destination 'platform=macOS' build
 
-# Run tests
+# Run unit tests with SwiftPM
+swift test --filter KasetTests
+
+# Run all tests with xcodebuild
 xcodebuild -scheme Kaset -destination 'platform=macOS' test
 
 # Lint & Format
@@ -28,6 +36,8 @@ swiftlint --strict && swiftformat .
 ```
 
 Or open `Kaset.xcodeproj` in Xcode and press ⌘R.
+
+**Note**: The project uses Swift Package Manager for dependency management (defined in `Package.swift`), but the Xcode project is still used for building the app bundle with resources, entitlements, and signing.
 
 ## Project Structure
 

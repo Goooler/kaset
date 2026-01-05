@@ -12,6 +12,7 @@ on:
       - "**.xcodeproj/**"
       - "**.xcworkspace/**"
       - "Assets.xcassets/**"
+      - "Package.swift"
       - ".github/workflows/dev-build.yml"
   pull_request:
     paths:
@@ -19,6 +20,7 @@ on:
       - "**.xcodeproj/**"
       - "**.xcworkspace/**"
       - "Assets.xcassets/**"
+      - "Package.swift"
       - ".github/workflows/dev-build.yml"
   workflow_dispatch:
 

@@ -125,10 +125,20 @@ If you discover new response structures or endpoint behaviors, update [docs/api-
 
 ### Build & Verify
 
-After modifying code, verify the build:
+The project uses **Swift Package Manager** for dependency management (see `Package.swift`), but the full app bundle is still built with Xcode:
 
 ```bash
+# Build the library target with SwiftPM
+swift build
+
+# Build the full app bundle with xcodebuild
 xcodebuild -scheme Kaset -destination 'platform=macOS' build
+
+# Run unit tests with SwiftPM (faster)
+swift test --filter KasetTests
+
+# Run all tests with xcodebuild (includes UI tests)
+xcodebuild -scheme Kaset -destination 'platform=macOS' test
 ```
 
 ### Code Quality

@@ -6,6 +6,12 @@ This document covers testing strategies, commands, and best practices for Kaset.
 
 ### Unit Tests
 
+Run with Swift Package Manager (faster):
+```bash
+swift test --filter KasetTests
+```
+
+Or with xcodebuild:
 ```bash
 xcodebuild -scheme Kaset -destination 'platform=macOS' test -only-testing:KasetTests
 ```
@@ -18,6 +24,12 @@ xcodebuild -scheme Kaset -destination 'platform=macOS' test
 
 ### Build Only
 
+Build with SwiftPM (library target):
+```bash
+swift build
+```
+
+Build full app with xcodebuild:
 ```bash
 xcodebuild -scheme Kaset -destination 'platform=macOS' build
 ```
