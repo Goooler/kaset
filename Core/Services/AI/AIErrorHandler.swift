@@ -131,6 +131,10 @@ enum AIErrorHandler {
             self.logger.warning("Content blocked by guardrails")
             return .contentBlocked
 
+        case .assetsUnavailable, .unsupportedGuide, .unsupportedLanguageOrLocale:
+             self.logger.warning("AI features unavailable")
+             return .notAvailable(reason: "Resources missing or unsupported")
+
         @unknown default:
             self.logger.error("Unknown generation error: \\(error.localizedDescription)")
             return .unknown(underlying: error)
