@@ -4,7 +4,7 @@ import SwiftUI
 // MARK: - PlaylistDetailView
 
 /// Detail view for a playlist showing its tracks.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct PlaylistDetailView: View {
     let playlist: Playlist
     @State var viewModel: PlaylistDetailViewModel
@@ -463,7 +463,7 @@ struct PlaylistDetailView: View {
 
 // MARK: - RefinePlaylistSheet
 
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 private struct RefinePlaylistSheet: View {
     let tracks: [Song]
     @Binding var isProcessing: Bool

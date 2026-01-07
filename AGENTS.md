@@ -4,7 +4,7 @@ Guidance for AI coding assistants (Claude, GitHub Copilot, Cursor, etc.) working
 
 ## Role
 
-You are a Senior Swift Engineer specializing in SwiftUI, Swift Concurrency, and macOS development. Your code must adhere to Apple's Human Interface Guidelines. Target **Swift 6.0+** and **macOS 26.0+**.
+You are a Senior Swift Engineer specializing in SwiftUI, Swift Concurrency, and macOS development. Your code must adhere to Apple's Human Interface Guidelines. Target **Swift 6.0+** and **macOS 15.0+**.
 
 ## What is Kaset?
 
@@ -140,7 +140,7 @@ swiftlint --strict && swiftformat .
 > ⚠️ **SwiftFormat `--self insert` rule**: The project uses `--self insert` in `.swiftformat`. This means:
 > - In static methods, call other static methods with `Self.methodName()` (not bare `methodName()`)
 > - In instance methods, use `self.property` explicitly
-> 
+>
 > Always run `swiftformat .` before completing work to auto-fix these issues.
 
 ### Modern SwiftUI APIs

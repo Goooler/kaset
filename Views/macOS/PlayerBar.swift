@@ -4,7 +4,7 @@ import SwiftUI
 // MARK: - PlayerBar
 
 /// Player bar shown at the bottom of the content area, styled like Apple Music with Liquid Glass.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct PlayerBar: View {
     @Environment(PlayerService.self) private var playerService
     @Environment(WebKitManager.self) private var webKitManager
@@ -23,7 +23,7 @@ struct PlayerBar: View {
     @State private var isAdjustingVolume = false
 
     var body: some View {
-        GlassEffectContainer(spacing: 0) {
+        GlassEffectContainerCompatible(spacing: 0) {
             HStack(spacing: 0) {
                 // Left section: Playback controls
                 self.playbackControls
@@ -41,8 +41,6 @@ struct PlayerBar: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 8)
             .frame(height: 52)
-            .glassEffect(.regular.interactive(), in: .capsule)
-            .glassEffectID("playerBar", in: self.playerNamespace)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
@@ -270,7 +268,7 @@ struct PlayerBar: View {
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(.pressable)
-            .glassEffectID("playPause", in: self.playerNamespace)
+
             .accessibilityLabel(self.playerService.isPlaying ? "Pause" : "Play")
 
             // Next
@@ -428,7 +426,7 @@ struct PlayerBar: View {
                     .foregroundStyle(self.playerService.showLyrics ? .red : .primary.opacity(0.85))
             }
             .buttonStyle(.pressable)
-            .glassEffectID("lyrics", in: self.playerNamespace)
+
             .accessibilityIdentifier(AccessibilityID.PlayerBar.lyricsButton)
             .accessibilityLabel("Lyrics")
             .accessibilityValue(self.playerService.showLyrics ? "Showing" : "Hidden")
@@ -445,7 +443,7 @@ struct PlayerBar: View {
                     .foregroundStyle(self.playerService.showQueue ? .red : .primary.opacity(0.85))
             }
             .buttonStyle(.pressable)
-            .glassEffectID("queue", in: self.playerNamespace)
+
             .accessibilityIdentifier(AccessibilityID.PlayerBar.queueButton)
             .accessibilityLabel("Queue")
             .accessibilityValue(self.playerService.showQueue ? "Showing" : "Hidden")
@@ -467,7 +465,7 @@ struct PlayerBar: View {
 // MARK: - AirPlayButton
 
 /// A SwiftUI wrapper for AVRoutePickerView to show AirPlay destinations.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct AirPlayButton: NSViewRepresentable {
     func makeNSView(context _: Context) -> AVRoutePickerView {
         let routePickerView = AVRoutePickerView()
@@ -480,7 +478,7 @@ struct AirPlayButton: NSViewRepresentable {
     }
 }
 
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 #Preview {
     PlayerBar()
         .environment(PlayerService())

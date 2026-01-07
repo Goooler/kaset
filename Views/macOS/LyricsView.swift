@@ -2,7 +2,7 @@ import FoundationModels
 import SwiftUI
 
 /// Right sidebar panel displaying lyrics for the current track.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct LyricsView: View {
     @Environment(PlayerService.self) private var playerService
 
@@ -25,7 +25,7 @@ struct LyricsView: View {
     @Namespace private var lyricsNamespace
 
     var body: some View {
-        GlassEffectContainer(spacing: 0) {
+        GlassEffectContainerCompatible(spacing: 0) {
             VStack(spacing: 0) {
                 // Header
                 self.headerView
@@ -37,10 +37,8 @@ struct LyricsView: View {
                 self.contentView
             }
             .frame(width: 280)
-            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
-            .glassEffectID("lyricsPanel", in: self.lyricsNamespace)
         }
-        .glassEffectTransition(.materialize)
+
         .onChange(of: self.playerService.currentTrack?.videoId) { _, newVideoId in
             if let videoId = newVideoId, videoId != lastLoadedVideoId {
                 // Reset explanation when track changes
