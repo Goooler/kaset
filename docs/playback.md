@@ -352,10 +352,15 @@ The continuation token is cleared when:
 
 This prevents infinite fetch from triggering on non-mix playback.
 
+## Video Mode
+
+For floating video window functionality, see [docs/video.md](video.md).
+
 ## Future Improvements
 
 - [x] Queue management (next/previous)
 - [x] Infinite mix loading
-- [ ] Seek support via JavaScript
-- [ ] Volume control
-- [ ] Artwork extraction for Now Playing
+- [x] Video mode (floating video window)
+- [x] Seek support via JavaScript
+- [x] Volume control
+- [x] Now Playing in Control Center (via WKWebView media session + remote commands)

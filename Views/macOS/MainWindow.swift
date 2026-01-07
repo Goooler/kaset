@@ -25,6 +25,7 @@ struct MainWindow: View {
     @State private var chartsViewModel: ChartsViewModel?
     @State private var moodsAndGenresViewModel: MoodsAndGenresViewModel?
     @State private var newReleasesViewModel: NewReleasesViewModel?
+    @State private var podcastsViewModel: PodcastsViewModel?
     @State private var likedMusicViewModel: LikedMusicViewModel?
     @State private var libraryViewModel: LibraryViewModel?
 
@@ -124,6 +125,17 @@ struct MainWindow: View {
             // Auto-hide the WebView once playback starts
             if isPlaying, self.playerService.showMiniPlayer {
                 self.playerService.confirmPlaybackStarted()
+            }
+        }
+        .onChange(of: self.playerService.showVideo) { _, showVideo in
+            DiagnosticsLogger.player.debug("showVideo onChange triggered: \(showVideo)")
+            if showVideo {
+                VideoWindowController.shared.show(
+                    playerService: self.playerService,
+                    webKitManager: self.webKitManager
+                )
+            } else {
+                VideoWindowController.shared.close()
             }
         }
         .task {
@@ -235,6 +247,8 @@ struct MainWindow: View {
             if let vm = moodsAndGenresViewModel { MoodsAndGenresView(viewModel: vm) }
         case .newReleases:
             if let vm = newReleasesViewModel { NewReleasesView(viewModel: vm) }
+        case .podcasts:
+            if let vm = podcastsViewModel { PodcastsView(viewModel: vm) }
         case .likedMusic:
             if let vm = likedMusicViewModel { LikedMusicView(viewModel: vm) }
         case .library:
@@ -288,6 +302,7 @@ struct MainWindow: View {
         self.chartsViewModel = ChartsViewModel(client: client)
         self.moodsAndGenresViewModel = MoodsAndGenresViewModel(client: client)
         self.newReleasesViewModel = NewReleasesViewModel(client: client)
+        self.podcastsViewModel = PodcastsViewModel(client: client)
         self.likedMusicViewModel = LikedMusicViewModel(client: client)
         self.libraryViewModel = LibraryViewModel(client: client)
 
@@ -335,6 +350,7 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
     case charts = "Charts"
     case moodsAndGenres = "Moods & Genres"
     case newReleases = "New Releases"
+    case podcasts = "Podcasts"
     case likedMusic = "Liked Music"
     case library = "Library"
 
@@ -354,10 +370,12 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
             "theatermask.and.paintbrush"
         case .newReleases:
             "sparkles"
+        case .podcasts:
+            "mic.fill"
         case .likedMusic:
             "heart.fill"
         case .library:
-            "music.note.list"
+            "square.stack.fill"
         }
     }
 }

@@ -31,6 +31,7 @@ enum AccessibilityID {
         static let dislikeButton = "playerBar.dislike"
         static let lyricsButton = "playerBar.lyrics"
         static let queueButton = "playerBar.queue"
+        static let videoButton = "playerBar.video"
         static let volumeSlider = "playerBar.volumeSlider"
         static let trackTitle = "playerBar.trackTitle"
         static let trackArtist = "playerBar.trackArtist"
@@ -160,5 +161,12 @@ enum AccessibilityID {
         static func songRow(index: Int) -> String {
             "likedMusicView.song.\(index)"
         }
+    }
+
+    // MARK: - Video Window
+
+    enum VideoWindow {
+        static let container = "videoWindow"
+        static let videoContent = "videoWindow.content"
     }
 }

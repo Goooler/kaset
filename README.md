@@ -14,12 +14,13 @@ A native macOS YouTube Music client built with Swift and SwiftUI.
 - 🔊 **Background Audio** — Music continues playing when the window is closed; stops on quit
 - ⌨️ **Keyboard Shortcuts** — Full keyboard control for playback, navigation, and more
 - 🧭 **Explore** — Discover new releases, charts, and moods & genres
-- 📚 **Library Access** — Browse your playlists, liked songs, albums, and artists
-- 🔍 **Search** — Find songs, albums, artists, and playlists
+- 🎙️ **Podcasts** — Browse and listen to podcasts with episode progress tracking
+- 📚 **Library Access** — Browse your playlists, liked songs, and subscribed podcasts
+- 🔍 **Search** — Find songs, albums, artists, playlists, and podcasts
 - ✨ **Apple Intelligence** — On-device AI for natural language commands, lyrics explanations, and playlist refinement
 - 📜 **Lyrics** — View song lyrics with AI-powered explanations and mood analysis
 - 📃 **Queue Management** — View, reorder, shuffle, and clear your playback queue
-- 🔗 **Share** — Share songs, playlists, albums, and artists via the native macOS share sheet
+- 📣 **Share** — Share songs, playlists, albums, and artists via the native macOS share sheet
 - 🔗 **URL Scheme** — Open songs directly with `kaset://play?v=VIDEO_ID`
 
 ## Requirements
@@ -36,8 +37,7 @@ Download the latest release from the [Releases](https://github.com/sozercan/kase
 ### Homebrew
 
 ```bash
-brew tap sozercan/kaset https://github.com/sozercan/kaset
-brew install --cask kaset
+brew install sozercan/repo/kaset
 ```
 
 > **Note:** The app is not signed.

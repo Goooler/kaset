@@ -107,6 +107,14 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         }
     }
 
+    /// Whether the current track has video available.
+    private(set) var currentTrackHasVideo: Bool = false
+
+    /// Whether video mode is active (user has opened video window).
+    /// Note: We don't auto-close based on currentTrackHasVideo here because
+    /// the detection can be unreliable when video mode CSS is active.
+    var showVideo: Bool = false
+
     // MARK: - Internal Properties (for extensions)
 
     let logger = DiagnosticsLogger.player
@@ -122,6 +130,10 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     static let volumeKey = "playerVolume"
     /// UserDefaults key for persisting volume before mute.
     static let volumeBeforeMuteKey = "playerVolumeBeforeMute"
+    /// UserDefaults key for persisting shuffle state.
+    static let shuffleEnabledKey = "playerShuffleEnabled"
+    /// UserDefaults key for persisting repeat mode.
+    static let repeatModeKey = "playerRepeatMode"
 
     // MARK: - Initialization
 
@@ -141,6 +153,73 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         } else {
             self.volumeBeforeMute = self.volume > 0 ? self.volume : 1.0
         }
+
+        // Restore shuffle and repeat settings if enabled in settings
+        if SettingsManager.shared.rememberPlaybackSettings {
+            if UserDefaults.standard.object(forKey: Self.shuffleEnabledKey) != nil {
+                self.shuffleEnabled = UserDefaults.standard.bool(forKey: Self.shuffleEnabledKey)
+                self.logger.info("Restored shuffle state: \(self.shuffleEnabled)")
+            }
+
+            if let savedRepeatMode = UserDefaults.standard.string(forKey: Self.repeatModeKey) {
+                switch savedRepeatMode {
+                case "all":
+                    self.repeatMode = .all
+                case "one":
+                    self.repeatMode = .one
+                case "off":
+                    self.repeatMode = .off
+                default:
+                    self.logger.warning("Unexpected repeat mode value in UserDefaults: \(savedRepeatMode), defaulting to off")
+                    self.repeatMode = .off
+                }
+                self.logger.info("Restored repeat mode: \(String(describing: self.repeatMode))")
+            }
+        }
+
+        // Load mock state for UI tests
+        self.loadMockStateIfNeeded()
+    }
+
+    /// Loads mock player state from environment variables for UI testing.
+    private func loadMockStateIfNeeded() {
+        guard UITestConfig.isUITestMode else { return }
+
+        // Load mock current track
+        if let jsonString = UITestConfig.environmentValue(for: UITestConfig.mockCurrentTrackKey),
+           let data = jsonString.data(using: .utf8),
+           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let id = dict["id"] as? String,
+           let title = dict["title"] as? String,
+           let videoId = dict["videoId"] as? String
+        {
+            let artist = dict["artist"] as? String ?? "Unknown Artist"
+            let duration: TimeInterval? = (dict["duration"] as? Int).map { TimeInterval($0) }
+            self.currentTrack = Song(
+                id: id,
+                title: title,
+                artists: [Artist(id: "mock-artist", name: artist)],
+                album: nil,
+                duration: duration,
+                thumbnailURL: nil,
+                videoId: videoId
+            )
+            self.logger.debug("Loaded mock current track: \(title)")
+        }
+
+        // Load mock playing state
+        if let isPlayingString = UITestConfig.environmentValue(for: UITestConfig.mockIsPlayingKey) {
+            let isPlaying = isPlayingString == "true"
+            self.state = isPlaying ? .playing : .paused
+            self.logger.debug("Loaded mock playing state: \(isPlaying)")
+        }
+
+        // Load mock video availability
+        if let hasVideoString = UITestConfig.environmentValue(for: UITestConfig.mockHasVideoKey) {
+            let hasVideo = hasVideoString == "true"
+            self.currentTrackHasVideo = hasVideo
+            self.logger.debug("Loaded mock video availability: \(hasVideo)")
+        }
     }
 
     /// Sets the YTMusicClient for API calls (dependency injection).
@@ -152,6 +231,7 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
 
     /// Plays a track by video ID.
     func play(videoId: String) async {
+        self.logger.debug("play() called with videoId: \(videoId)")
         self.logger.info("Playing video: \(videoId)")
         self.state = .loading
 
@@ -189,6 +269,9 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         self.logger.info("Playing song: \(song.title)")
         self.state = .loading
         self.currentTrack = song
+
+        // Mark that we initiated this playback (to detect and correct YouTube's autoplay override)
+        self.isKasetInitiatedPlayback = true
 
         // Use existing feedbackTokens if the song already has them
         if let tokens = song.feedbackTokens {
@@ -236,6 +319,11 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
 
     /// Updates playback state from the persistent WebView observer.
     func updatePlaybackState(isPlaying: Bool, progress: Double, duration: Double) {
+        // Debug log once per second (when progress changes by at least 1 second)
+        if Int(progress) != Int(self.progress) {
+            self.logger.debug("updatePlaybackState: isPlaying=\(isPlaying), progress=\(Int(progress)), duration=\(Int(duration))")
+        }
+
         let previousProgress = self.progress
         self.progress = progress
         self.duration = duration
@@ -255,6 +343,10 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     /// Flag to track when a song is nearing its end.
     private var songNearingEnd: Bool = false
 
+    /// Flag to track when we initiated a track change (to correct YouTube's autoplay interference).
+    /// This is set when we call play() and cleared after the track loads.
+    private var isKasetInitiatedPlayback: Bool = false
+
     /// Updates track metadata when track changes (e.g., via next/previous).
     /// Also handles enforcing our queue when YouTube autoplay kicks in.
     func updateTrackMetadata(title: String, artist: String, thumbnailUrl: String) {
@@ -269,7 +361,24 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         // Check if track actually changed
         let trackChanged = self.currentTrack?.title != title || self.currentTrack?.artistsDisplay != artist
 
-        // If track changed and we have a queue, check if YouTube autoplay kicked in
+        // If we initiated playback (e.g., via next() with shuffle), check if YouTube loaded a different track
+        // This happens when the WebView's media session intercepts media keys and triggers YouTube's own next
+        if trackChanged, self.isKasetInitiatedPlayback, !self.queue.isEmpty {
+            // Get the song we intended to play and compare using videoId to detect mismatched tracks
+            if let intendedSong = queue[safe: currentIndex], intendedSong.videoId != videoId {
+                self.logger.info("YouTube loaded different track '\(title)' (\(videoId)), re-playing intended track '\(intendedSong.title)'")
+                // Clear the flag to prevent infinite loop
+                self.isKasetInitiatedPlayback = false
+                Task {
+                    await self.play(song: intendedSong)
+                }
+                return
+            }
+            // Track matches what we wanted, clear the flag
+            self.isKasetInitiatedPlayback = false
+        }
+
+        // If track changed and we have a queue, check if YouTube autoplay kicked in (song ending naturally)
         if trackChanged, !self.queue.isEmpty, self.songNearingEnd {
             self.songNearingEnd = false
 
@@ -307,6 +416,51 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         if trackChanged {
             self.resetTrackStatus()
         }
+    }
+
+    /// Grace period instant - don't auto-close video window shortly after opening (uses monotonic clock)
+    private var videoWindowOpenedAt: ContinuousClock.Instant?
+
+    /// Updates whether the current track has video available.
+    /// Note: This only affects the UI (enabling/disabling the video button).
+    /// It does NOT auto-close an open video window, since hasVideo detection
+    /// can be unreliable when the video element has been extracted by video mode CSS.
+    func updateVideoAvailability(hasVideo: Bool) {
+        let previousValue = self.currentTrackHasVideo
+        self.currentTrackHasVideo = hasVideo
+
+        // Don't auto-close the video window based on hasVideo detection.
+        // The detection is unreliable when video mode is active because:
+        // 1. The video element has been extracted from its original DOM location
+        // 2. The Song/Video toggle buttons may be hidden by our CSS
+        // 3. Resize or other layout changes can temporarily break detection
+        //
+        // Instead, we rely on trackChanged detection in the Coordinator to close
+        // the video window when a new track starts.
+
+        if previousValue != hasVideo {
+            self.logger.debug("Video availability updated: \(hasVideo)")
+        }
+    }
+
+    /// Called when video window opens to start grace period
+    func videoWindowDidOpen() {
+        self.videoWindowOpenedAt = ContinuousClock.now
+        self.logger.debug("videoWindowDidOpen: grace period started")
+    }
+
+    /// Called when video window closes to clear grace period
+    func videoWindowDidClose() {
+        self.videoWindowOpenedAt = nil
+        self.logger.debug("videoWindowDidClose: grace period cleared")
+    }
+
+    /// Returns true if video window was recently opened (within grace period)
+    /// This is used to ignore spurious trackChanged events during video mode setup
+    var isVideoGracePeriodActive: Bool {
+        guard let openedAt = self.videoWindowOpenedAt else { return false }
+        // 3 second grace period to allow video mode setup to complete
+        return ContinuousClock.now - openedAt < .seconds(3)
     }
 
     /// Toggles play/pause.
@@ -459,7 +613,6 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     /// Sets the volume.
     func setVolume(_ value: Double) async {
         let clampedValue = max(0, min(1, value))
-        self.logger.debug("Setting volume to \(clampedValue)")
         self.volume = clampedValue
 
         // Persist volume to UserDefaults (including mute state of 0)
@@ -492,6 +645,10 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     /// Toggles shuffle mode.
     func toggleShuffle() {
         self.shuffleEnabled.toggle()
+        // Persist shuffle state to UserDefaults if setting is enabled
+        if SettingsManager.shared.rememberPlaybackSettings {
+            UserDefaults.standard.set(self.shuffleEnabled, forKey: Self.shuffleEnabledKey)
+        }
         let status = self.shuffleEnabled ? "enabled" : "disabled"
         self.logger.info("Shuffle mode: \(status)")
     }
@@ -505,6 +662,18 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
             self.repeatMode = .one
         case .one:
             self.repeatMode = .off
+        }
+        // Persist repeat mode to UserDefaults if setting is enabled
+        if SettingsManager.shared.rememberPlaybackSettings {
+            let modeString = switch self.repeatMode {
+            case .off:
+                "off"
+            case .all:
+                "all"
+            case .one:
+                "one"
+            }
+            UserDefaults.standard.set(modeString, forKey: Self.repeatModeKey)
         }
         let mode = self.repeatMode
         self.logger.info("Repeat mode: \(String(describing: mode))")
