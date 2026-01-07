@@ -107,6 +107,14 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         }
     }
 
+    /// Whether the current track has video available.
+    private(set) var currentTrackHasVideo: Bool = false
+
+    /// Whether video mode is active (user has opened video window).
+    /// Note: We don't auto-close based on currentTrackHasVideo here because
+    /// the detection can be unreliable when video mode CSS is active.
+    var showVideo: Bool = false
+
     // MARK: - Internal Properties (for extensions)
 
     let logger = DiagnosticsLogger.player
@@ -141,6 +149,50 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         } else {
             self.volumeBeforeMute = self.volume > 0 ? self.volume : 1.0
         }
+
+        // Load mock state for UI tests
+        self.loadMockStateIfNeeded()
+    }
+
+    /// Loads mock player state from environment variables for UI testing.
+    private func loadMockStateIfNeeded() {
+        guard UITestConfig.isUITestMode else { return }
+
+        // Load mock current track
+        if let jsonString = UITestConfig.environmentValue(for: UITestConfig.mockCurrentTrackKey),
+           let data = jsonString.data(using: .utf8),
+           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let id = dict["id"] as? String,
+           let title = dict["title"] as? String,
+           let videoId = dict["videoId"] as? String
+        {
+            let artist = dict["artist"] as? String ?? "Unknown Artist"
+            let duration: TimeInterval? = (dict["duration"] as? Int).map { TimeInterval($0) }
+            self.currentTrack = Song(
+                id: id,
+                title: title,
+                artists: [Artist(id: "mock-artist", name: artist)],
+                album: nil,
+                duration: duration,
+                thumbnailURL: nil,
+                videoId: videoId
+            )
+            self.logger.debug("Loaded mock current track: \(title)")
+        }
+
+        // Load mock playing state
+        if let isPlayingString = UITestConfig.environmentValue(for: UITestConfig.mockIsPlayingKey) {
+            let isPlaying = isPlayingString == "true"
+            self.state = isPlaying ? .playing : .paused
+            self.logger.debug("Loaded mock playing state: \(isPlaying)")
+        }
+
+        // Load mock video availability
+        if let hasVideoString = UITestConfig.environmentValue(for: UITestConfig.mockHasVideoKey) {
+            let hasVideo = hasVideoString == "true"
+            self.currentTrackHasVideo = hasVideo
+            self.logger.debug("Loaded mock video availability: \(hasVideo)")
+        }
     }
 
     /// Sets the YTMusicClient for API calls (dependency injection).
@@ -152,6 +204,7 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
 
     /// Plays a track by video ID.
     func play(videoId: String) async {
+        self.logger.debug("play() called with videoId: \(videoId)")
         self.logger.info("Playing video: \(videoId)")
         self.state = .loading
 
@@ -236,6 +289,11 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
 
     /// Updates playback state from the persistent WebView observer.
     func updatePlaybackState(isPlaying: Bool, progress: Double, duration: Double) {
+        // Debug log once per second (when progress changes by at least 1 second)
+        if Int(progress) != Int(self.progress) {
+            self.logger.debug("updatePlaybackState: isPlaying=\(isPlaying), progress=\(Int(progress)), duration=\(Int(duration))")
+        }
+
         let previousProgress = self.progress
         self.progress = progress
         self.duration = duration
@@ -307,6 +365,51 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         if trackChanged {
             self.resetTrackStatus()
         }
+    }
+
+    /// Grace period instant - don't auto-close video window shortly after opening (uses monotonic clock)
+    private var videoWindowOpenedAt: ContinuousClock.Instant?
+
+    /// Updates whether the current track has video available.
+    /// Note: This only affects the UI (enabling/disabling the video button).
+    /// It does NOT auto-close an open video window, since hasVideo detection
+    /// can be unreliable when the video element has been extracted by video mode CSS.
+    func updateVideoAvailability(hasVideo: Bool) {
+        let previousValue = self.currentTrackHasVideo
+        self.currentTrackHasVideo = hasVideo
+
+        // Don't auto-close the video window based on hasVideo detection.
+        // The detection is unreliable when video mode is active because:
+        // 1. The video element has been extracted from its original DOM location
+        // 2. The Song/Video toggle buttons may be hidden by our CSS
+        // 3. Resize or other layout changes can temporarily break detection
+        //
+        // Instead, we rely on trackChanged detection in the Coordinator to close
+        // the video window when a new track starts.
+
+        if previousValue != hasVideo {
+            self.logger.debug("Video availability updated: \(hasVideo)")
+        }
+    }
+
+    /// Called when video window opens to start grace period
+    func videoWindowDidOpen() {
+        self.videoWindowOpenedAt = ContinuousClock.now
+        self.logger.debug("videoWindowDidOpen: grace period started")
+    }
+
+    /// Called when video window closes to clear grace period
+    func videoWindowDidClose() {
+        self.videoWindowOpenedAt = nil
+        self.logger.debug("videoWindowDidClose: grace period cleared")
+    }
+
+    /// Returns true if video window was recently opened (within grace period)
+    /// This is used to ignore spurious trackChanged events during video mode setup
+    var isVideoGracePeriodActive: Bool {
+        guard let openedAt = self.videoWindowOpenedAt else { return false }
+        // 3 second grace period to allow video mode setup to complete
+        return ContinuousClock.now - openedAt < .seconds(3)
     }
 
     /// Toggles play/pause.
@@ -459,7 +562,6 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     /// Sets the volume.
     func setVolume(_ value: Double) async {
         let clampedValue = max(0, min(1, value))
-        self.logger.debug("Setting volume to \(clampedValue)")
         self.volume = clampedValue
 
         // Persist volume to UserDefaults (including mute state of 0)

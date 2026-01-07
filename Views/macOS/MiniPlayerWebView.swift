@@ -62,7 +62,8 @@ struct MiniPlayerWebView: NSViewRepresentable {
     static func dismantleNSView(_: NSView, coordinator _: Coordinator) {
         // WebView is managed by SingletonPlayerWebView.shared - it persists
         // Remove the message handler to avoid duplicate handlers
-        SingletonPlayerWebView.shared.webView?.configuration.userContentController.removeScriptMessageHandler(forName: "miniPlayer")
+        SingletonPlayerWebView.shared.webView?.configuration.userContentController
+            .removeScriptMessageHandler(forName: "miniPlayer")
     }
 
     // MARK: - Observer Script
@@ -201,14 +202,28 @@ struct MiniPlayerWebView: NSViewRepresentable {
 
 /// Manages a single WebView instance for the entire app lifetime.
 /// This ensures there's only ever ONE WebView playing audio.
+///
+/// Extensions provide:
+/// - Playback controls (SingletonPlayerWebView+PlaybackControls.swift)
+/// - Video mode CSS injection (SingletonPlayerWebView+VideoMode.swift)
+/// - Observer script (SingletonPlayerWebView+ObserverScript.swift)
 @MainActor
 final class SingletonPlayerWebView {
     static let shared = SingletonPlayerWebView()
 
     private(set) var webView: WKWebView?
     var currentVideoId: String?
-    private var coordinator: Coordinator?
-    private let logger = DiagnosticsLogger.player
+    var coordinator: Coordinator?
+    let logger = DiagnosticsLogger.player
+
+    /// Current display mode for the WebView.
+    enum DisplayMode {
+        case hidden // 1x1 for audio-only
+        case miniPlayer // 160x90 toast
+        case video // Full size in video window
+    }
+
+    var displayMode: DisplayMode = .hidden
 
     private init() {}
 
@@ -231,15 +246,11 @@ final class SingletonPlayerWebView {
         // Add script message handler
         configuration.userContentController.add(self.coordinator!, name: "singletonPlayer")
 
-        // Inject volume initialization script FIRST (at document start)
-        // This ensures __kasetTargetVolume is set before the observer script runs
-        let savedVolume = playerService.volume
-        let volumeInitScript = WKUserScript(
-            source: "window.__kasetTargetVolume = \(savedVolume);",
-            injectionTime: .atDocumentStart,
-            forMainFrameOnly: true
-        )
-        configuration.userContentController.addUserScript(volumeInitScript)
+        // Note: We do NOT inject a static volume init script here because the volume
+        // may change between WebView creation and page loads. Instead, we:
+        // 1. Set __kasetTargetVolume in loadVideo() before loading a new page
+        // 2. Update it in didFinish after each page load completes
+        // This ensures we always use the CURRENT volume, not a stale value.
 
         // Inject observer script (at document end)
         let script = WKUserScript(
@@ -265,9 +276,13 @@ final class SingletonPlayerWebView {
     func ensureInHierarchy(container: NSView) {
         guard let webView, webView.superview !== container else { return }
         webView.removeFromSuperview()
+        container.addSubview(webView)
+
+        // Use autoresizing to match container size (consistent with waitForValidBoundsAndInject)
+        webView.translatesAutoresizingMaskIntoConstraints = true
         webView.frame = container.bounds
         webView.autoresizingMask = [.width, .height]
-        container.addSubview(webView)
+        // Note: Don't inject CSS here - updateDisplayMode() handles it after layout completes
     }
 
     /// Load a video, stopping any currently playing audio first.
@@ -279,7 +294,7 @@ final class SingletonPlayerWebView {
 
         let previousVideoId = self.currentVideoId
         guard videoId != previousVideoId else {
-            self.logger.info("Video \(videoId) already loaded, skipping")
+            self.logger.debug("Video \(videoId) already loaded, skipping")
             return
         }
 
@@ -305,337 +320,6 @@ final class SingletonPlayerWebView {
         }
     }
 
-    // MARK: - Playback Controls
-
-    /// Toggle play/pause.
-    func playPause() {
-        guard let webView else { return }
-        self.logger.debug("playPause() called")
-
-        let script = """
-            (function() {
-                const playBtn = document.querySelector('.play-pause-button.ytmusic-player-bar');
-                if (playBtn) { playBtn.click(); return 'clicked'; }
-                const video = document.querySelector('video');
-                if (video) {
-                    if (video.paused) { video.play(); return 'played'; }
-                    else { video.pause(); return 'paused'; }
-                }
-                return 'no-element';
-            })();
-        """
-        webView.evaluateJavaScript(script) { [weak self] result, error in
-            if let error {
-                self?.logger.error("playPause error: \(error.localizedDescription)")
-            } else {
-                self?.logger.debug("playPause result: \(String(describing: result))")
-            }
-        }
-    }
-
-    /// Play (resume).
-    func play() {
-        guard let webView else { return }
-        self.logger.debug("play() called")
-
-        let script = """
-            (function() {
-                const video = document.querySelector('video');
-                if (video && video.paused) { video.play(); return 'played'; }
-                return 'already-playing';
-            })();
-        """
-        webView.evaluateJavaScript(script, completionHandler: nil)
-    }
-
-    /// Pause.
-    func pause() {
-        guard let webView else { return }
-        self.logger.debug("pause() called")
-
-        let script = """
-            (function() {
-                const video = document.querySelector('video');
-                if (video && !video.paused) { video.pause(); return 'paused'; }
-                return 'already-paused';
-            })();
-        """
-        webView.evaluateJavaScript(script, completionHandler: nil)
-    }
-
-    /// Skip to next track.
-    func next() {
-        guard let webView else { return }
-        self.logger.debug("next() called")
-
-        let script = """
-            (function() {
-                const nextBtn = document.querySelector('.next-button.ytmusic-player-bar');
-                if (nextBtn) { nextBtn.click(); return 'clicked'; }
-                return 'no-button';
-            })();
-        """
-        webView.evaluateJavaScript(script) { [weak self] result, error in
-            if let error {
-                self?.logger.error("next error: \(error.localizedDescription)")
-            } else {
-                self?.logger.debug("next result: \(String(describing: result))")
-            }
-        }
-    }
-
-    /// Go to previous track.
-    func previous() {
-        guard let webView else { return }
-        self.logger.debug("previous() called")
-
-        let script = """
-            (function() {
-                const prevBtn = document.querySelector('.previous-button.ytmusic-player-bar');
-                if (prevBtn) { prevBtn.click(); return 'clicked'; }
-                return 'no-button';
-            })();
-        """
-        webView.evaluateJavaScript(script) { [weak self] result, error in
-            if let error {
-                self?.logger.error("previous error: \(error.localizedDescription)")
-            } else {
-                self?.logger.debug("previous result: \(String(describing: result))")
-            }
-        }
-    }
-
-    /// Seek to a specific time in seconds.
-    func seek(to time: Double) {
-        guard let webView else { return }
-        self.logger.debug("seek(to: \(time)) called")
-
-        let script = """
-            (function() {
-                const video = document.querySelector('video');
-                if (video) { video.currentTime = \(time); return 'seeked'; }
-                return 'no-video';
-            })();
-        """
-        webView.evaluateJavaScript(script, completionHandler: nil)
-    }
-
-    /// Set volume (0.0 - 1.0).
-    func setVolume(_ volume: Double) {
-        guard let webView else { return }
-        let clampedVolume = max(0, min(1, volume))
-        self.logger.debug("setVolume(\(clampedVolume)) called")
-
-        // Update both the target volume (for enforcement) and the actual video volume
-        let script = """
-            (function() {
-                // Update the target volume for enforcement
-                window.__kasetTargetVolume = \(clampedVolume);
-                const video = document.querySelector('video');
-                if (video) {
-                    video.volume = \(clampedVolume);
-                    return 'set';
-                }
-                return 'no-video';
-            })();
-        """
-        webView.evaluateJavaScript(script, completionHandler: nil)
-    }
-
-    // Observer script for playback state
-    private static var observerScript: String {
-        """
-        (function() {
-            'use strict';
-            const bridge = window.webkit.messageHandlers.singletonPlayer;
-            let lastTitle = '';
-            let lastArtist = '';
-            let isPollingActive = false;
-            let pollIntervalId = null;
-            let lastUpdateTime = 0;
-            const UPDATE_THROTTLE_MS = 500; // Throttle updates to max 2/sec
-            const POLL_INTERVAL_MS = 1000; // Poll at 1Hz during playback (reduced from 250ms)
-
-            // Volume enforcement: track target volume set by Swift
-            // Default to 1.0, will be updated when Swift calls setVolume()
-            window.__kasetTargetVolume = window.__kasetTargetVolume ?? 1.0;
-            let isEnforcingVolume = false; // Prevent infinite loops
-
-            function waitForPlayerBar() {
-                const playerBar = document.querySelector('ytmusic-player-bar');
-                if (playerBar) {
-                    setupObserver(playerBar);
-                    setupVideoListeners();
-                    return;
-                }
-                setTimeout(waitForPlayerBar, 500);
-            }
-
-            function setupVideoListeners() {
-                // Watch for video element to attach play/pause listeners
-                function attachVideoListeners() {
-                    const video = document.querySelector('video');
-                    if (!video) {
-                        setTimeout(attachVideoListeners, 500);
-                        return;
-                    }
-
-                    video.addEventListener('play', startPolling);
-                    video.addEventListener('playing', startPolling);
-                    video.addEventListener('pause', stopPolling);
-                    video.addEventListener('ended', stopPolling);
-                    video.addEventListener('waiting', () => sendUpdate()); // Buffer state
-                    video.addEventListener('seeked', () => sendUpdate()); // Seek completed
-
-                    // Volume enforcement: listen for external volume changes
-                    video.addEventListener('volumechange', () => {
-                        if (isEnforcingVolume) return; // Ignore our own changes
-                        const targetVol = window.__kasetTargetVolume;
-                        // Only enforce if we have a valid target volume set by Swift
-                        if (targetVol !== undefined && Math.abs(video.volume - targetVol) > 0.01) {
-                            isEnforcingVolume = true;
-                            video.volume = targetVol;
-                            isEnforcingVolume = false;
-                        }
-                    });
-
-                    // Don't auto-apply volume here - let didFinish handle it with the current value
-                    // This prevents applying stale volume from WebView creation time
-
-                    // Start polling if already playing
-                    if (!video.paused) {
-                        startPolling();
-                    }
-                }
-                attachVideoListeners();
-
-                // Also watch for video element replacement (YouTube may recreate it)
-                const videoObserver = new MutationObserver(() => {
-                    const video = document.querySelector('video');
-                    if (video && !video.__kasetListenersAttached) {
-                        video.__kasetListenersAttached = true;
-                        attachVideoListeners();
-                        // Apply current target volume to new video element
-                        if (window.__kasetTargetVolume !== undefined) {
-                            video.volume = window.__kasetTargetVolume;
-                        }
-                    }
-                });
-                videoObserver.observe(document.body, { childList: true, subtree: true });
-            }
-
-            function startPolling() {
-                if (isPollingActive) return;
-                isPollingActive = true;
-
-                // Apply target volume when playback starts
-                // This is the most reliable point since the video element definitely exists
-                const video = document.querySelector('video');
-                if (video && window.__kasetTargetVolume !== undefined) {
-                    video.volume = window.__kasetTargetVolume;
-                }
-
-                sendUpdate(); // Immediate update
-                // Poll at 1Hz during playback for progress updates (reduced CPU usage)
-                pollIntervalId = setInterval(sendUpdate, POLL_INTERVAL_MS);
-            }
-
-            function stopPolling() {
-                isPollingActive = false;
-                if (pollIntervalId) {
-                    clearInterval(pollIntervalId);
-                    pollIntervalId = null;
-                }
-                sendUpdate(); // Final state update
-            }
-
-            function setupObserver(playerBar) {
-                // Debounced mutation observer - only triggers on significant changes
-                let mutationTimeout = null;
-                const observer = new MutationObserver(() => {
-                    if (mutationTimeout) return;
-                    mutationTimeout = setTimeout(() => {
-                        mutationTimeout = null;
-                        sendUpdate();
-                    }, 100);
-                });
-                observer.observe(playerBar, {
-                    attributes: true, characterData: true,
-                    childList: true, subtree: true,
-                    attributeFilter: ['title', 'aria-label', 'like-status', 'value', 'aria-valuemax']
-                });
-                sendUpdate();
-            }
-
-            function sendUpdate() {
-                // Throttle updates
-                const now = Date.now();
-                if (now - lastUpdateTime < UPDATE_THROTTLE_MS && isPollingActive) {
-                    return;
-                }
-                lastUpdateTime = now;
-
-                try {
-                    const playPauseBtn = document.querySelector('.play-pause-button.ytmusic-player-bar');
-                    const isPlaying = playPauseBtn ?
-                        (playPauseBtn.getAttribute('title') === 'Pause' ||
-                         playPauseBtn.getAttribute('aria-label') === 'Pause') : false;
-
-                    const progressBar = document.querySelector('#progress-bar');
-
-                    // Extract track metadata
-                    const titleEl = document.querySelector('.ytmusic-player-bar.title');
-                    const artistEl = document.querySelector('.ytmusic-player-bar.byline');
-                    const thumbEl = document.querySelector('.ytmusic-player-bar .thumbnail img, ytmusic-player-bar .image');
-
-                    const title = titleEl ? titleEl.textContent.trim() : '';
-                    const artist = artistEl ? artistEl.textContent.trim() : '';
-                    let thumbnailUrl = '';
-
-                    // Get the thumbnail URL from the image element
-                    if (thumbEl) {
-                        thumbnailUrl = thumbEl.src || thumbEl.getAttribute('src') || '';
-                    }
-
-                    // Extract like status from the like button renderer
-                    let likeStatus = 'INDIFFERENT';
-                    const likeRenderer = document.querySelector('ytmusic-like-button-renderer');
-                    if (likeRenderer) {
-                        const status = likeRenderer.getAttribute('like-status');
-                        if (status === 'LIKE') likeStatus = 'LIKE';
-                        else if (status === 'DISLIKE') likeStatus = 'DISLIKE';
-                    }
-
-                    // Check if track changed
-                    const trackChanged = (title !== lastTitle || artist !== lastArtist) && title !== '';
-                    if (trackChanged) {
-                        lastTitle = title;
-                        lastArtist = artist;
-                    }
-
-                    bridge.postMessage({
-                        type: 'STATE_UPDATE',
-                        isPlaying: isPlaying,
-                        progress: progressBar ? parseInt(progressBar.getAttribute('value') || '0') : 0,
-                        duration: progressBar ? parseInt(progressBar.getAttribute('aria-valuemax') || '0') : 0,
-                        title: title,
-                        artist: artist,
-                        thumbnailUrl: thumbnailUrl,
-                        trackChanged: trackChanged,
-                        likeStatus: likeStatus
-                    });
-                } catch (e) {}
-            }
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', waitForPlayerBar);
-            } else {
-                waitForPlayerBar();
-            }
-        })();
-        """
-    }
-
     // MARK: - Coordinator
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
@@ -659,6 +343,7 @@ final class SingletonPlayerWebView {
             let thumbnailUrl = body["thumbnailUrl"] as? String ?? ""
             let trackChanged = body["trackChanged"] as? Bool ?? false
             let likeStatusString = body["likeStatus"] as? String ?? "INDIFFERENT"
+            let hasVideo = body["hasVideo"] as? Bool ?? false
 
             // Parse like status
             let likeStatus: LikeStatus = switch likeStatusString {
@@ -677,6 +362,9 @@ final class SingletonPlayerWebView {
                     duration: Double(duration)
                 )
 
+                // Update video availability
+                self.playerService.updateVideoAvailability(hasVideo: hasVideo)
+
                 // Update like status only when track changes (initial state)
                 if trackChanged {
                     self.playerService.updateLikeStatus(likeStatus)
@@ -689,32 +377,54 @@ final class SingletonPlayerWebView {
                         artist: artist,
                         thumbnailUrl: thumbnailUrl
                     )
+
+                    // Close video window on track change, but skip during grace period
+                    // (grace period prevents false positives during initial video mode setup)
+                    // Note: trackChanged detection uses title/artist comparison from the observer script
+                    if self.playerService.showVideo, !self.playerService.isVideoGracePeriodActive {
+                        DiagnosticsLogger.player.info(
+                            "trackChanged to '\(title)' while video shown - closing video window")
+                        self.playerService.showVideo = false
+                    }
                 }
             }
         }
 
         func webView(_ webView: WKWebView, didFinish _: WKNavigation!) {
-            DiagnosticsLogger.player.info("Singleton WebView finished loading: \(webView.url?.absoluteString ?? "nil")")
+            DiagnosticsLogger.player.info(
+                "Singleton WebView finished loading: \(webView.url?.absoluteString ?? "nil")")
 
-            // Apply saved volume when page loads
-            // Use a script that waits for the video element to exist
+            // Apply the current volume when page finishes loading
+            // This is critical because YouTube may set its own default volume
             let savedVolume = self.playerService.volume
             let applyVolumeScript = """
                 (function() {
+                    // Set target volume for enforcement
                     window.__kasetTargetVolume = \(savedVolume);
-                    function applyVolume() {
-                        const video = document.querySelector('video');
-                        if (video) {
-                            video.volume = \(savedVolume);
-                            return;
-                        }
-                        setTimeout(applyVolume, 100);
+                    // Set flag to prevent enforcement from reverting our change
+                    window.__kasetIsSettingVolume = true;
+
+                    // Apply to video element if it exists
+                    const video = document.querySelector('video');
+                    if (video) {
+                        video.volume = \(savedVolume);
                     }
-                    applyVolume();
+
+                    // Clear flag after a moment
+                    setTimeout(() => { window.__kasetIsSettingVolume = false; }, 100);
+
+                    return video ? 'applied' : 'no-video-yet';
                 })();
             """
-            webView.evaluateJavaScript(applyVolumeScript, completionHandler: nil)
-            DiagnosticsLogger.player.debug("Injected volume apply script: \(savedVolume)")
+            webView.evaluateJavaScript(applyVolumeScript) { result, error in
+                if let error {
+                    DiagnosticsLogger.player.error(
+                        "Failed to apply saved volume \(savedVolume): \(error.localizedDescription)"
+                    )
+                } else if let resultString = result as? String {
+                    DiagnosticsLogger.player.debug("Volume apply result: \(resultString)")
+                }
+            }
         }
     }
 }

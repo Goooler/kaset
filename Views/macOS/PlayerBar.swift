@@ -449,6 +449,29 @@ struct PlayerBar: View {
             .accessibilityIdentifier(AccessibilityID.PlayerBar.queueButton)
             .accessibilityLabel("Queue")
             .accessibilityValue(self.playerService.showQueue ? "Showing" : "Hidden")
+
+            // Video button - only shown when track has video
+            if self.playerService.currentTrackHasVideo {
+                Button {
+                    HapticService.toggle()
+                    DiagnosticsLogger.player.debug(
+                        "Video button clicked, toggling showVideo from \(self.playerService.showVideo)")
+                    withAnimation(AppAnimation.standard) {
+                        player.showVideo.toggle()
+                    }
+                } label: {
+                    Image(systemName: self.playerService.showVideo ? "tv.fill" : "tv")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(self.playerService.showVideo ? .red : .primary.opacity(0.85))
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.pressable)
+                .glassEffectID("video", in: self.playerNamespace)
+                .keyboardShortcut("v", modifiers: [.command, .shift])
+                .accessibilityIdentifier(AccessibilityID.PlayerBar.videoButton)
+                .accessibilityLabel("Video")
+                .accessibilityValue(self.playerService.showVideo ? "Playing" : "Off")
+            }
         }
     }
 
