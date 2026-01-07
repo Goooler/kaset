@@ -2,7 +2,7 @@ import FoundationModels
 import SwiftUI
 
 /// Right sidebar panel displaying lyrics for the current track.
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 struct LyricsView: View {
     @Environment(PlayerService.self) private var playerService
 
@@ -12,9 +12,9 @@ struct LyricsView: View {
     @State private var isLoading = false
     @State private var lastLoadedVideoId: String?
 
-    // AI explanation state (Type erased for compatibility with macOS 15)
-    @State private var lyricsSummary: Any? // Actually LyricsSummary?
-    @State private var partialSummary: Any? // Actually LyricsSummary.PartiallyGenerated?
+    // AI explanation state
+    @State private var lyricsSummary: LyricsSummary?
+    @State private var partialSummary: LyricsSummary.PartiallyGenerated?
     @State private var isExplaining = false
     @State private var showExplanation = false
     @State private var explanationError: String?
@@ -25,47 +25,22 @@ struct LyricsView: View {
     @Namespace private var lyricsNamespace
 
     var body: some View {
-        Group {
-            if #available(macOS 26.0, *) {
-                GlassEffectContainer(spacing: 0) {
-                    VStack(spacing: 0) {
-                        // Header
-                        self.headerView
+        GlassEffectContainer(spacing: 0) {
+            VStack(spacing: 0) {
+                // Header
+                self.headerView
 
-                        Divider()
-                            .opacity(0.3)
+                Divider()
+                    .opacity(0.3)
 
-                        // Content
-                        self.contentView
-                    }
-                    .frame(width: 280)
-                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
-                    .glassEffectID("lyricsPanel", in: self.lyricsNamespace)
-                }
-            } else {
-                VStack(spacing: 0) {
-                    // Header
-                    self.headerView
-
-                    Divider()
-                        .opacity(0.3)
-
-                    // Content
-                    self.contentView
-                }
-                .frame(width: 280)
-                .background(.ultraThinMaterial)
-                .clipShape(.rect(cornerRadius: 20))
-                .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 5)
+                // Content
+                self.contentView
             }
+            .frame(width: 280)
+            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
+            .glassEffectID("lyricsPanel", in: self.lyricsNamespace)
         }
-        .if(true) { view in
-            if #available(macOS 26.0, *) {
-                view.glassEffectTransition(.materialize)
-            } else {
-                view
-            }
-        }
+        .glassEffectTransition(.materialize)
         .onChange(of: self.playerService.currentTrack?.videoId) { _, newVideoId in
             if let videoId = newVideoId, videoId != lastLoadedVideoId {
                 // Reset explanation when track changes
@@ -159,24 +134,18 @@ struct LyricsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 // AI Explanation section (streaming or complete)
-                if #available(macOS 26.0, *) {
-                    if self.isExplaining, let partial = partialSummary as? LyricsSummary.PartiallyGenerated {
-                        self.streamingExplanationSection(partial)
-                        Divider()
-                            .padding(.vertical, 12)
-                    } else if self.showExplanation, let summary = lyricsSummary as? LyricsSummary {
-                        self.explanationSection(summary)
-                        Divider()
-                            .padding(.vertical, 12)
-                    } else if let error = explanationError {
-                        self.errorSection(error)
-                        Divider()
-                            .padding(.vertical, 12)
-                    }
+                if self.isExplaining, let partial = partialSummary {
+                    self.streamingExplanationSection(partial)
+                    Divider()
+                        .padding(.vertical, 12)
+                } else if self.showExplanation, let summary = lyricsSummary {
+                    self.explanationSection(summary)
+                    Divider()
+                        .padding(.vertical, 12)
                 } else if let error = explanationError {
-                     self.errorSection(error)
-                     Divider()
-                         .padding(.vertical, 12)
+                    self.errorSection(error)
+                    Divider()
+                        .padding(.vertical, 12)
                 }
 
                 // Lyrics text
@@ -203,7 +172,6 @@ struct LyricsView: View {
         }
     }
 
-    @available(macOS 26.0, *)
     private func explanationSection(_ summary: LyricsSummary) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             // Mood
@@ -242,7 +210,6 @@ struct LyricsView: View {
     }
 
     /// Shows partial content as it streams in from the AI.
-    @available(macOS 26.0, *)
     private func streamingExplanationSection(_ partial: LyricsSummary.PartiallyGenerated) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             // Mood (shows when available)
@@ -254,9 +221,9 @@ struct LyricsView: View {
                         .font(.subheadline.weight(.medium))
                 } else {
                     ProgressView()
-                    .controlSize(.small)
-                    .scaleEffect(0.6)
-                    .frame(width: 10, height: 10)
+                        .controlSize(.small)
+                        .scaleEffect(0.6)
+                        .frame(width: 10, height: 10)
                 }
             }
             .padding(.horizontal, 16)
@@ -326,42 +293,42 @@ struct LyricsView: View {
     }
 
     private var noLyricsView: some View {
-         VStack(spacing: 12) {
-             Image(systemName: "music.note")
-                 .font(.system(size: 40))
-                 .foregroundStyle(.tertiary)
+        VStack(spacing: 12) {
+            Image(systemName: "music.note")
+                .font(.system(size: 40))
+                .foregroundStyle(.tertiary)
 
-             Text("No Lyrics Available")
-                 .font(.headline)
-                 .foregroundStyle(.secondary)
+            Text("No Lyrics Available")
+                .font(.headline)
+                .foregroundStyle(.secondary)
 
-             Text("There aren't any lyrics available for this song.")
-                 .font(.subheadline)
-                 .foregroundStyle(.tertiary)
-                 .multilineTextAlignment(.center)
-                 .padding(.horizontal, 24)
-         }
-         .frame(maxWidth: .infinity, maxHeight: .infinity)
-     }
+            Text("There aren't any lyrics available for this song.")
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 
-     private var noTrackPlayingView: some View {
-         VStack(spacing: 12) {
-             Image(systemName: "play.circle")
-                 .font(.system(size: 40))
-                 .foregroundStyle(.tertiary)
+    private var noTrackPlayingView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "play.circle")
+                .font(.system(size: 40))
+                .foregroundStyle(.tertiary)
 
-             Text("No Song Playing")
-                 .font(.headline)
-                 .foregroundStyle(.secondary)
+            Text("No Song Playing")
+                .font(.headline)
+                .foregroundStyle(.secondary)
 
-             Text("Play a song to view its lyrics here.")
-                 .font(.subheadline)
-                 .foregroundStyle(.tertiary)
-                 .multilineTextAlignment(.center)
-                 .padding(.horizontal, 24)
-         }
-         .frame(maxWidth: .infinity, maxHeight: .infinity)
-     }
+            Text("Play a song to view its lyrics here.")
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 
     // MARK: - Data Loading
 
@@ -392,12 +359,6 @@ struct LyricsView: View {
         self.explanationError = nil
         self.partialSummary = nil
         self.logger.info("Explaining lyrics for: \(track.title)")
-
-        guard #available(macOS 26.0, *) else {
-            self.explanationError = "Apple Intelligence requires macOS 26.0+"
-            self.isExplaining = false
-            return
-        }
 
         let instructions = """
         You are a music critic and lyricist. Analyze song lyrics and provide insights about
@@ -433,7 +394,7 @@ struct LyricsView: View {
             }
 
             // Stream complete - convert final partial to complete summary
-            if let final = self.partialSummary as? LyricsSummary.PartiallyGenerated,
+            if let final = self.partialSummary,
                let mood = final.mood,
                let themes = final.themes,
                let explanation = final.explanation

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Settings view for general app preferences.
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 struct GeneralSettingsView: View {
     @Environment(AuthService.self) private var authService
     @State private var settings = SettingsManager.shared

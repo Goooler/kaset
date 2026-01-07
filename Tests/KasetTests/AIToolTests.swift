@@ -5,7 +5,7 @@ import Testing
 // MARK: - MusicSearchToolTests
 
 /// Tests for MusicSearchTool output formatting and behavior.
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 @Suite("MusicSearchTool", .tags(.api), .serialized)
 @MainActor
 struct MusicSearchToolTests {
@@ -136,7 +136,7 @@ struct MusicSearchToolTests {
 // MARK: - QueueToolTests
 
 /// Tests for QueueTool output formatting and behavior.
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 @Suite("QueueTool Unit", .tags(.api))
 struct QueueToolTests {
     @Test("Tool has correct name and description")

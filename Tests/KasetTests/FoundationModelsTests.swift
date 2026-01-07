@@ -5,7 +5,7 @@ import Testing
 // MARK: - MusicIntentTests
 
 /// Tests for MusicIntent query building and content source suggestion.
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 @Suite("MusicIntent", .tags(.api))
 struct MusicIntentTests {
     // MARK: - buildSearchQuery Tests
@@ -255,7 +255,7 @@ struct MusicIntentTests {
 
 // MARK: - MusicQueryTests
 
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 @Suite("MusicQuery", .tags(.api))
 struct MusicQueryTests {
     @Test("Build search query basic artist")
@@ -346,7 +346,7 @@ struct MusicQueryTests {
 
 // MARK: - AISessionTypeTests
 
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 @Suite("AISessionType", .tags(.api))
 struct AISessionTypeTests {
     @Test("Command session has generation options")
@@ -387,7 +387,7 @@ struct ContentSourceTests {
 
 // MARK: - QueueIntentTests
 
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 @Suite("QueueIntent Unit", .tags(.api))
 struct QueueIntentTests {
     @Test("Queue action values")
@@ -463,7 +463,7 @@ struct QueueIntentTests {
 
 // MARK: - MusicActionTests
 
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 @Suite("MusicAction", .tags(.model))
 struct MusicActionTests {
     @Test(
@@ -509,7 +509,7 @@ struct MusicActionTests {
 
 // MARK: - PlaylistChangesTests
 
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 @Suite("PlaylistChanges Unit", .tags(.model))
 struct PlaylistChangesTests {
     @Test("PlaylistChanges with empty removals")
@@ -565,7 +565,7 @@ struct PlaylistChangesTests {
 
 // MARK: - QueueChangesTests
 
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 @Suite("QueueChanges Unit", .tags(.model))
 struct QueueChangesTests {
     @Test("QueueChanges with empty additions and removals")
@@ -639,7 +639,7 @@ struct QueueChangesTests {
 
 // MARK: - LyricsSummaryTests
 
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 @Suite("LyricsSummary Unit", .tags(.model))
 struct LyricsSummaryTests {
     @Test("LyricsSummary with minimal themes")

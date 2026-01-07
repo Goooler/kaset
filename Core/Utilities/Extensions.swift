@@ -33,7 +33,7 @@ extension TimeInterval {
 extension View {
     /// Applies a modifier conditionally.
     @ViewBuilder
-    func `if`(_ condition: Bool, @ViewBuilder transform: (Self) -> some View) -> some View {
+    func `if`(_ condition: Bool, transform: (Self) -> some View) -> some View {
         if condition {
             transform(self)
         } else {

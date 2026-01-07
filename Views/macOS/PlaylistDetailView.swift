@@ -4,7 +4,7 @@ import SwiftUI
 // MARK: - PlaylistDetailView
 
 /// Detail view for a playlist showing its tracks.
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 struct PlaylistDetailView: View {
     let playlist: Playlist
     @State var viewModel: PlaylistDetailViewModel
@@ -18,11 +18,11 @@ struct PlaylistDetailView: View {
     /// Whether the refine playlist sheet is visible.
     @State private var showRefineSheet: Bool = false
 
-    /// AI-generated playlist changes. (Type erased for macOS 15 compatibility)
-    @State private var playlistChanges: Any? // PlaylistChanges?
+    /// AI-generated playlist changes.
+    @State private var playlistChanges: PlaylistChanges?
 
-    /// Partial playlist changes during streaming. (Type erased for macOS 15 compatibility)
-    @State private var partialChanges: Any? // PlaylistChanges.PartiallyGenerated?
+    /// Partial playlist changes during streaming.
+    @State private var partialChanges: PlaylistChanges.PartiallyGenerated?
 
     /// Whether AI is processing the refine request.
     @State private var isRefining: Bool = false
@@ -79,32 +79,21 @@ struct PlaylistDetailView: View {
         }
         .sheet(isPresented: self.$showRefineSheet) {
             if let detail = viewModel.playlistDetail {
-                if #available(macOS 26.0, *) {
-                    RefinePlaylistSheet(
-                        tracks: detail.tracks,
-                        isProcessing: self.$isRefining,
-                        changes: Binding(
-                            get: { self.playlistChanges as? PlaylistChanges },
-                            set: { self.playlistChanges = $0 }
-                        ),
-                        partialChanges: Binding(
-                            get: { self.partialChanges as? PlaylistChanges.PartiallyGenerated },
-                            set: { self.partialChanges = $0 }
-                        ),
-                        errorMessage: self.$refineError,
-                        onRefine: { prompt in
-                            await self.refinePlaylist(tracks: detail.tracks, prompt: prompt)
-                        },
-                        onApply: {
-                            // Playlist modification via API not yet implemented
-                            // For now, just close the sheet
-                            self.showRefineSheet = false
-                        }
-                    )
-                } else {
-                    Text("Not available")
-                        .onAppear { self.showRefineSheet = false }
-                }
+                RefinePlaylistSheet(
+                    tracks: detail.tracks,
+                    isProcessing: self.$isRefining,
+                    changes: self.$playlistChanges,
+                    partialChanges: self.$partialChanges,
+                    errorMessage: self.$refineError,
+                    onRefine: { prompt in
+                        await self.refinePlaylist(tracks: detail.tracks, prompt: prompt)
+                    },
+                    onApply: {
+                        // Playlist modification via API not yet implemented
+                        // For now, just close the sheet
+                        self.showRefineSheet = false
+                    }
+                )
             }
         }
     }
@@ -404,12 +393,6 @@ struct PlaylistDetailView: View {
 
         self.logger.info("Refining playlist with prompt: \(prompt)")
 
-        guard #available(macOS 26.0, *) else {
-            self.refineError = "Apple Intelligence requires macOS 26.0+"
-            self.isRefining = false
-            return
-        }
-
         let instructions = """
         You are a music playlist curator. Analyze songs and suggest changes based on the request.
 
@@ -451,11 +434,11 @@ struct PlaylistDetailView: View {
 
             for try await snapshot in stream {
                 // Update partial content for streaming UI
-                self.partialChanges = snapshot.content // Already type erased
+                self.partialChanges = snapshot.content
             }
 
             // Stream complete - convert final partial to complete changes
-            if let final = self.partialChanges as? PlaylistChanges.PartiallyGenerated,
+            if let final = self.partialChanges,
                let removals = final.removals,
                let reasoning = final.reasoning
             {

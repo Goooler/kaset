@@ -879,29 +879,12 @@ private struct SuggestionChip: View {
     }
 }
 
-@available(macOS 26.0, *)
-private struct CommandBarPreviewWrapper: View {
-    @State private var isPresented = true
-    let authService: AuthService
-    let client: YTMusicClient
-
-    init() {
-        self.authService = AuthService()
-        self.client = YTMusicClient(authService: authService, webKitManager: .shared)
-    }
-
-    var body: some View {
-        CommandBarView(client: client, isPresented: $isPresented)
-             .environment(PlayerService())
-             .padding(40)
-             .frame(width: 600, height: 300)
-    }
-}
-
 #Preview {
-    if #available(macOS 26.0, *) {
-        CommandBarPreviewWrapper()
-    } else {
-        Text("Requires macOS 26.0")
-    }
+    @Previewable @State var isPresented = true
+    let authService = AuthService()
+    let client = YTMusicClient(authService: authService, webKitManager: .shared)
+    CommandBarView(client: client, isPresented: $isPresented)
+        .environment(PlayerService())
+        .padding(40)
+        .frame(width: 600, height: 300)
 }

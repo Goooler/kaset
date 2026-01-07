@@ -46,7 +46,7 @@ extension EnvironmentValues {
 // MARK: - KasetApp
 
 /// Main entry point for the Kaset macOS application.
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 @main
 struct KasetApp: App {
     /// App delegate for lifecycle management (background playback).
@@ -119,9 +119,7 @@ struct KasetApp: App {
                         await self.authService.checkLoginStatus()
 
                         // Warm up Foundation Models in background
-                        if #available(macOS 26.0, *) {
-                            await FoundationModelsService.shared.warmup()
-                        }
+                        await FoundationModelsService.shared.warmup()
                     }
                     .onOpenURL { url in
                         self.handleIncomingURL(url)
@@ -322,7 +320,7 @@ struct KasetApp: App {
 // MARK: - SettingsView
 
 /// Main settings view with tabbed navigation.
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 struct SettingsView: View {
     @Environment(UpdaterService.self) private var updaterService
 
@@ -333,12 +331,10 @@ struct SettingsView: View {
                     Label("General", systemImage: "gearshape")
                 }
 
-            if #available(macOS 26.0, *) {
-                IntelligenceSettingsView()
-                    .tabItem {
-                        Label("Intelligence", systemImage: "sparkles")
-                    }
-            }
+            IntelligenceSettingsView()
+                .tabItem {
+                    Label("Intelligence", systemImage: "sparkles")
+                }
         }
         .frame(width: 450, height: 400)
     }

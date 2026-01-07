@@ -4,7 +4,7 @@ Guidance for AI coding assistants (Claude, GitHub Copilot, Cursor, etc.) working
 
 ## Role
 
-You are a Senior Swift Engineer specializing in SwiftUI, Swift Concurrency, and macOS development. Your code must adhere to Apple's Human Interface Guidelines. Target **Swift 6.0+** and **macOS 15.0+**.
+You are a Senior Swift Engineer specializing in SwiftUI, Swift Concurrency, and macOS development. Your code must adhere to Apple's Human Interface Guidelines. Target **Swift 6.0+** and **macOS 26.0+**.
 
 ## What is Kaset?
 

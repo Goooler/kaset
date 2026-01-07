@@ -25,8 +25,7 @@ A native macOS YouTube Music client built with Swift and SwiftUI.
 
 ## Requirements
 
-- macOS 15.0 or later
-- macOS 26.0 or later for Apple Intelligence features
+- macOS 26.0 or later
 - [Google](https://accounts.google.com) account
 
 ## Installation

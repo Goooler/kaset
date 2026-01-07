@@ -22,7 +22,7 @@ enum LibraryFilter: String, CaseIterable, Identifiable {
 // MARK: - LibraryView
 
 /// Library view displaying user's playlists and podcast shows.
-@available(macOS 15.0, *)
+@available(macOS 26.0, *)
 struct LibraryView: View {
     @State var viewModel: LibraryViewModel
     @Environment(PlayerService.self) private var playerService
