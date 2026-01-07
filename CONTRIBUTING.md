@@ -6,7 +6,7 @@ Thank you for your interest in contributing! This document provides guidelines a
 
 ### Requirements
 
-- macOS 26.0 or later
+- macOS 15.0 or later (macOS 26.0+ for AI features)
 - Xcode 16.0 or later
 - Swift 6.0
 
@@ -157,7 +157,7 @@ final class MyServiceTests: XCTestCase {
         // Do NOT call: try await super.setUp()
         // Set up test fixtures here
     }
-    
+
     override func tearDown() async throws {
         // Clean up here
         // Do NOT call: try await super.tearDown()

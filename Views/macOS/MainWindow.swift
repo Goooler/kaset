@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - MainWindow
 
 /// Main application window with sidebar navigation and player bar.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct MainWindow: View {
     @Environment(AuthService.self) private var authService
     @Environment(PlayerService.self) private var playerService
@@ -100,9 +100,25 @@ struct MainWindow: View {
                             self.showCommandBarSheet = false
                         }
 
-                    // Command bar centered
-                    CommandBarView(client: client, isPresented: self.$showCommandBarSheet)
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    // Command bar centered (only available in macOS 26.0+)
+                    if #available(macOS 26.0, *) {
+                        CommandBarView(client: client, isPresented: self.$showCommandBarSheet)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    } else {
+                        // Fallback for older macOS versions if somehow triggered
+                        VStack(spacing: 12) {
+                            Text("Command Bar Unavailable")
+                                .font(.headline)
+                            Text("This feature requires macOS 26.0 or newer.")
+                                .foregroundStyle(.secondary)
+                            Button("Dismiss") {
+                                self.showCommandBarSheet = false
+                            }
+                        }
+                        .padding()
+                        .background(.regularMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
                 }
                 .animation(.easeInOut(duration: 0.15), value: self.showCommandBarSheet)
             }
@@ -369,7 +385,7 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
     }
 }
 
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 #Preview {
     @Previewable @State var navSelection: NavigationItem? = .home
     let authService = AuthService()
