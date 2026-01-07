@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import FoundationModels
 import SwiftUI
 
@@ -880,8 +879,6 @@ private struct SuggestionChip: View {
     }
 }
 
-// MARK: - CommandBarPreviewWrapper
-
 @available(macOS 26.0, *)
 private struct CommandBarPreviewWrapper: View {
     @State private var isPresented = true
@@ -890,14 +887,14 @@ private struct CommandBarPreviewWrapper: View {
 
     init() {
         self.authService = AuthService()
-        self.client = YTMusicClient(authService: self.authService, webKitManager: .shared)
+        self.client = YTMusicClient(authService: authService, webKitManager: .shared)
     }
 
     var body: some View {
-        CommandBarView(client: self.client, isPresented: self.$isPresented)
-            .environment(PlayerService())
-            .padding(40)
-            .frame(width: 600, height: 300)
+        CommandBarView(client: client, isPresented: $isPresented)
+             .environment(PlayerService())
+             .padding(40)
+             .frame(width: 600, height: 300)
     }
 }
 

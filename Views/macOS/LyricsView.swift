@@ -174,9 +174,9 @@ struct LyricsView: View {
                             .padding(.vertical, 12)
                     }
                 } else if let error = explanationError {
-                    self.errorSection(error)
-                    Divider()
-                        .padding(.vertical, 12)
+                     self.errorSection(error)
+                     Divider()
+                         .padding(.vertical, 12)
                 }
 
                 // Lyrics text
@@ -254,9 +254,9 @@ struct LyricsView: View {
                         .font(.subheadline.weight(.medium))
                 } else {
                     ProgressView()
-                        .controlSize(.small)
-                        .scaleEffect(0.6)
-                        .frame(width: 10, height: 10)
+                    .controlSize(.small)
+                    .scaleEffect(0.6)
+                    .frame(width: 10, height: 10)
                 }
             }
             .padding(.horizontal, 16)
@@ -326,42 +326,42 @@ struct LyricsView: View {
     }
 
     private var noLyricsView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "music.note")
-                .font(.system(size: 40))
-                .foregroundStyle(.tertiary)
+         VStack(spacing: 12) {
+             Image(systemName: "music.note")
+                 .font(.system(size: 40))
+                 .foregroundStyle(.tertiary)
 
-            Text("No Lyrics Available")
-                .font(.headline)
-                .foregroundStyle(.secondary)
+             Text("No Lyrics Available")
+                 .font(.headline)
+                 .foregroundStyle(.secondary)
 
-            Text("There aren't any lyrics available for this song.")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
+             Text("There aren't any lyrics available for this song.")
+                 .font(.subheadline)
+                 .foregroundStyle(.tertiary)
+                 .multilineTextAlignment(.center)
+                 .padding(.horizontal, 24)
+         }
+         .frame(maxWidth: .infinity, maxHeight: .infinity)
+     }
 
-    private var noTrackPlayingView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "play.circle")
-                .font(.system(size: 40))
-                .foregroundStyle(.tertiary)
+     private var noTrackPlayingView: some View {
+         VStack(spacing: 12) {
+             Image(systemName: "play.circle")
+                 .font(.system(size: 40))
+                 .foregroundStyle(.tertiary)
 
-            Text("No Song Playing")
-                .font(.headline)
-                .foregroundStyle(.secondary)
+             Text("No Song Playing")
+                 .font(.headline)
+                 .foregroundStyle(.secondary)
 
-            Text("Play a song to view its lyrics here.")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
+             Text("Play a song to view its lyrics here.")
+                 .font(.subheadline)
+                 .foregroundStyle(.tertiary)
+                 .multilineTextAlignment(.center)
+                 .padding(.horizontal, 24)
+         }
+         .frame(maxWidth: .infinity, maxHeight: .infinity)
+     }
 
     // MARK: - Data Loading
 
