@@ -5,12 +5,14 @@ import UserNotifications
 @MainActor
 final class NotificationService {
     private let playerService: PlayerService
+    private let settingsManager: SettingsManager
     private let logger = DiagnosticsLogger.notification
     private var observationTask: Task<Void, Never>?
     private var lastNotifiedTrackId: String?
 
-    init(playerService: PlayerService) {
+    init(playerService: PlayerService, settingsManager: SettingsManager = .shared) {
         self.playerService = playerService
+        self.settingsManager = settingsManager
         self.requestAuthorization()
         self.startObserving()
     }
@@ -62,6 +64,12 @@ final class NotificationService {
     // MARK: - Notification
 
     private func postTrackNotification(_ track: Song) async {
+        // Check if notifications are enabled in settings
+        guard self.settingsManager.showNowPlayingNotifications else {
+            self.logger.debug("Notifications disabled in settings, skipping: \(track.title)")
+            return
+        }
+
         let content = UNMutableNotificationContent()
         content.title = track.title
         content.body = track.artistsDisplay.isEmpty ? "Unknown Artist" : track.artistsDisplay
