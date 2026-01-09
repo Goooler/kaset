@@ -22,25 +22,25 @@ enum KeychainCookieStorage {
         "SID", "HSID", "SSID", "APISID",
     ])
 
-  static func isValidAuthCookie(_ cookie: HTTPCookie, now: Date = Date()) -> Bool {
-    guard Self.authCookieNames.contains(cookie.name) else { return false }
-    if let expiresDate = cookie.expiresDate, expiresDate < now {
-      return false
-    }
-    return true
-  }
-
-  /// Creates the serialized archive we persist to Keychain (and in DEBUG to `cookies.dat`).
-  /// Returns nil if there are no valid auth cookies to store.
-  static func makeArchiveData(from cookies: [HTTPCookie]) -> (data: Data, cookieCount: Int)? {
-    let now = Date()
-    let authCookies = cookies.filter { cookie in
-      Self.isValidAuthCookie(cookie, now: now)
+    static func isValidAuthCookie(_ cookie: HTTPCookie, now: Date = Date()) -> Bool {
+        guard self.authCookieNames.contains(cookie.name) else { return false }
+        if let expiresDate = cookie.expiresDate, expiresDate < now {
+            return false
+        }
+        return true
     }
 
-    guard !authCookies.isEmpty else { return nil }
+    /// Creates the serialized archive we persist to Keychain (and in DEBUG to `cookies.dat`).
+    /// Returns nil if there are no valid auth cookies to store.
+    static func makeArchiveData(from cookies: [HTTPCookie]) -> (data: Data, cookieCount: Int)? {
+        let now = Date()
+        let authCookies = cookies.filter { cookie in
+            Self.isValidAuthCookie(cookie, now: now)
+        }
 
-    let cookieData = authCookies.compactMap { cookie -> Data? in
+        guard !authCookies.isEmpty else { return nil }
+
+        let cookieData = authCookies.compactMap { cookie -> Data? in
             guard let properties = cookie.properties else { return nil }
             var stringProperties: [String: Any] = [:]
             for (key, value) in properties {
@@ -52,74 +52,73 @@ enum KeychainCookieStorage {
             )
         }
 
-    guard !cookieData.isEmpty,
-      let data = try? NSKeyedArchiver.archivedData(
-        withRootObject: cookieData,
-        requiringSecureCoding: false
-      )
-    else {
-      Self.logger.error("Failed to serialize cookies for Keychain")
-      return nil
+        guard !cookieData.isEmpty,
+              let data = try? NSKeyedArchiver.archivedData(
+                  withRootObject: cookieData,
+                  requiringSecureCoding: false
+              )
+        else {
+            Self.logger.error("Failed to serialize cookies for Keychain")
+            return nil
         }
 
-    return (data: data, cookieCount: cookieData.count)
-  }
+        return (data: data, cookieCount: cookieData.count)
+    }
 
-  /// Saves YouTube auth cookies to the Keychain.
-  static func saveCookies(_ cookies: [HTTPCookie]) {
-    guard let archive = Self.makeArchiveData(from: cookies) else { return }
+    /// Saves YouTube auth cookies to the Keychain.
+    static func saveCookies(_ cookies: [HTTPCookie]) {
+        guard let archive = makeArchiveData(from: cookies) else { return }
 
-    Self.saveArchiveData(archive.data, cookieCount: archive.cookieCount)
-  }
+        Self.saveArchiveData(archive.data, cookieCount: archive.cookieCount)
+    }
 
-  /// Saves an already-serialized cookie archive to the Keychain.
-  static func saveArchiveData(_ data: Data, cookieCount: Int) {
-
-    // Update existing item or add new one (atomic upsert)
+    /// Saves an already-serialized cookie archive to the Keychain.
+    static func saveArchiveData(_ data: Data, cookieCount: Int) {
+        // Update existing item or add new one (atomic upsert)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.service,
             kSecAttrAccount as String: Self.account,
-    ]
+        ]
 
-    let attributes: [String: Any] = [
+        let attributes: [String: Any] = [
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
         ]
 
-    var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
 
-    if status == errSecItemNotFound {
-      var newQuery = query
-      for (key, value) in attributes {
-        newQuery[key] = value
-      }
-      status = SecItemAdd(newQuery as CFDictionary, nil)
-    }
+        if status == errSecItemNotFound {
+            var newQuery = query
+            for (key, value) in attributes {
+                newQuery[key] = value
+            }
+            status = SecItemAdd(newQuery as CFDictionary, nil)
+        }
 
         if status == errSecSuccess {
-      self.logger.debug("Saved \(cookieCount) auth cookies to Keychain")
+            self.logger.debug("Saved \(cookieCount) auth cookies to Keychain")
         } else {
             self.logger.error("Failed to save cookies to Keychain: \(status)")
         }
     }
 
-  /// Returns `true` if a Keychain item exists for our cookie storage.
-  static func hasCookieItem() -> Bool {
-    let query: [String: Any] = [
-      kSecClass as String: kSecClassGenericPassword,
-      kSecAttrService as String: Self.service,
-      kSecAttrAccount as String: Self.account,
-      kSecReturnData as String: false,
-      kSecMatchLimit as String: kSecMatchLimitOne,
-    ]
+    /// Returns `true` if a Keychain item exists for our cookie storage.
+    static func hasCookieItem() -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Self.service,
+            kSecAttrAccount as String: Self.account,
+            kSecReturnData as String: false,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
 
-    let status = SecItemCopyMatching(query as CFDictionary, nil)
-    return status == errSecSuccess
-  }
+        let status = SecItemCopyMatching(query as CFDictionary, nil)
+        return status == errSecSuccess
+    }
 
-  /// Loads the raw serialized cookie archive data from Keychain.
-  static func loadArchiveData() -> Data? {
+    /// Loads the raw serialized cookie archive data from Keychain.
+    static func loadArchiveData() -> Data? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Self.service,
@@ -131,31 +130,30 @@ enum KeychainCookieStorage {
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
 
-    guard status == errSecSuccess else {
+        guard status == errSecSuccess else {
             if status == errSecItemNotFound {
-        Self.logger.info("No cookies found in Keychain (first run or signed out)")
-      } else {
-        Self.logger.error("Failed to load cookies from Keychain: \(status)")
+                Self.logger.info("No cookies found in Keychain (first run or signed out)")
+            } else {
+                Self.logger.error("Failed to load cookies from Keychain: \(status)")
             }
             return nil
         }
 
-    return result as? Data
-  }
-
-  /// Decodes cookies from a serialized archive created by `makeArchiveData(from:)`.
-  static func decodeCookies(from archiveData: Data) -> [HTTPCookie] {
-    guard
-      let cookieDataArray = try? NSKeyedUnarchiver.unarchivedObject(
-        ofClasses: [NSArray.self, NSData.self],
-        from: archiveData
-      ) as? [Data]
-    else {
-      Self.logger.error("Failed to decode cookie archive data")
-      return []
+        return result as? Data
     }
 
-    let cookies = cookieDataArray.compactMap { cookieData -> HTTPCookie? in
+    /// Decodes cookies from a serialized archive created by `makeArchiveData(from:)`.
+    static func decodeCookies(from archiveData: Data) -> [HTTPCookie] {
+        guard let cookieDataArray = try? NSKeyedUnarchiver.unarchivedObject(
+            ofClasses: [NSArray.self, NSData.self],
+            from: archiveData
+        ) as? [Data]
+        else {
+            self.logger.error("Failed to decode cookie archive data")
+            return []
+        }
+
+        let cookies = cookieDataArray.compactMap { cookieData -> HTTPCookie? in
             guard let stringProperties = try? NSKeyedUnarchiver.unarchivedObject(
                 ofClasses: [NSDictionary.self, NSString.self, NSDate.self, NSNumber.self],
                 from: cookieData
@@ -171,16 +169,16 @@ enum KeychainCookieStorage {
         }
 
         if !cookies.isEmpty {
-      Self.logger.info("Loaded \(cookies.count) auth cookies from Keychain")
+            Self.logger.info("Loaded \(cookies.count) auth cookies from Keychain")
         }
-    return cookies
-  }
+        return cookies
+    }
 
-  /// Retrieves YouTube auth cookies from the Keychain.
-  /// Returns the cookies if found, nil otherwise.
-  static func loadCookies() -> [HTTPCookie]? {
-    guard let archiveData = Self.loadArchiveData() else { return nil }
-    let cookies = Self.decodeCookies(from: archiveData)
+    /// Retrieves YouTube auth cookies from the Keychain.
+    /// Returns the cookies if found, nil otherwise.
+    static func loadCookies() -> [HTTPCookie]? {
+        guard let archiveData = loadArchiveData() else { return nil }
+        let cookies = Self.decodeCookies(from: archiveData)
         return cookies.isEmpty ? nil : cookies
     }
 
@@ -226,10 +224,10 @@ enum LegacyCookieMigration {
     /// Returns true if migration occurred, false if no migration was needed.
     @discardableResult
     static func migrateIfNeeded() -> Bool {
-    // If Keychain already has cookies, do not repeatedly migrate on every startup.
-    guard !KeychainCookieStorage.hasCookieItem() else { return false }
+        // If Keychain already has cookies, do not repeatedly migrate on every startup.
+        guard !KeychainCookieStorage.hasCookieItem() else { return false }
 
-    guard let fileURL = legacyFileURL,
+        guard let fileURL = legacyFileURL,
               FileManager.default.fileExists(atPath: fileURL.path)
         else {
             // No legacy file exists, nothing to migrate
@@ -266,21 +264,21 @@ enum LegacyCookieMigration {
             return HTTPCookie(properties: convertedProperties)
         }
 
-    let now = Date()
-    let validCookies = cookies.filter { cookie in
-      KeychainCookieStorage.isValidAuthCookie(cookie, now: now)
-    }
+        let now = Date()
+        let validCookies = cookies.filter { cookie in
+            KeychainCookieStorage.isValidAuthCookie(cookie, now: now)
+        }
 
-    guard !validCookies.isEmpty else {
+        guard !validCookies.isEmpty else {
             self.logger.info("Legacy file contained no valid cookies")
-      #if !DEBUG
-            Self.deleteLegacyFile()
-      #endif
+            #if !DEBUG
+                Self.deleteLegacyFile()
+            #endif
             return false
         }
 
         // Save to Keychain
-    KeychainCookieStorage.saveCookies(validCookies)
+        KeychainCookieStorage.saveCookies(validCookies)
 
         // Verify migration succeeded by checking if cookies were actually saved
         // Note: loadCookies() returns nil if Keychain access fails (e.g., unsigned builds)
@@ -290,10 +288,10 @@ enum LegacyCookieMigration {
             return false
         }
 
-    self.logger.info("✓ Successfully migrated \(validCookies.count) cookies to Keychain")
-    #if !DEBUG
-        Self.deleteLegacyFile()
-    #endif
+        self.logger.info("✓ Successfully migrated \(validCookies.count) cookies to Keychain")
+        #if !DEBUG
+            Self.deleteLegacyFile()
+        #endif
         return true
     }
 
@@ -311,52 +309,53 @@ enum LegacyCookieMigration {
 }
 
 #if DEBUG
-// MARK: - DebugCookieFileExporter
 
-/// Debug-only cookie export to the legacy `cookies.dat` file used by `Tools/api-explorer.swift`.
-///
-/// In release builds we store cookies only in Keychain and do not export to disk.
-enum DebugCookieFileExporter {
-    private static let logger = DiagnosticsLogger.webKit
+    // MARK: - DebugCookieFileExporter
 
-    private static var fileURL: URL? {
-        guard let appSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first else {
-            return nil
+    /// Debug-only cookie export to the legacy `cookies.dat` file used by `Tools/api-explorer.swift`.
+    ///
+    /// In release builds we store cookies only in Keychain and do not export to disk.
+    enum DebugCookieFileExporter {
+        private static let logger = DiagnosticsLogger.webKit
+
+        private static var fileURL: URL? {
+            guard let appSupport = FileManager.default.urls(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask
+            ).first else {
+                return nil
+            }
+
+            let appFolder = appSupport.appendingPathComponent("Kaset", isDirectory: true)
+
+            do {
+                try FileManager.default.createDirectory(
+                    at: appFolder,
+                    withIntermediateDirectories: true
+                )
+            } catch {
+                Self.logger.error("Failed to create Kaset folder: \(error.localizedDescription)")
+                return nil
+            }
+
+            return appFolder.appendingPathComponent("cookies.dat")
         }
 
-        let appFolder = appSupport.appendingPathComponent("Kaset", isDirectory: true)
+        static func exportAuthCookiesArchiveData(_ archiveData: Data) {
+            guard let destinationURL = fileURL else { return }
 
-        do {
-            try FileManager.default.createDirectory(
-                at: appFolder,
-                withIntermediateDirectories: true
-            )
-        } catch {
-            Self.logger.error("Failed to create Kaset folder: \(error.localizedDescription)")
-            return nil
+            do {
+                try archiveData.write(to: destinationURL, options: .atomic)
+                // Restrict permissions: owner read/write only.
+                try FileManager.default.setAttributes(
+                    [.posixPermissions: 0o600],
+                    ofItemAtPath: destinationURL.path
+                )
+            } catch {
+                Self.logger.warning("Failed to export cookies.dat for debug tools: \(error.localizedDescription)")
+            }
         }
-
-        return appFolder.appendingPathComponent("cookies.dat")
     }
-
-    static func exportAuthCookiesArchiveData(_ archiveData: Data) {
-        guard let destinationURL = Self.fileURL else { return }
-
-        do {
-        try archiveData.write(to: destinationURL, options: .atomic)
-            // Restrict permissions: owner read/write only.
-            try FileManager.default.setAttributes(
-                [.posixPermissions: 0o600],
-                ofItemAtPath: destinationURL.path
-            )
-        } catch {
-            Self.logger.warning("Failed to export cookies.dat for debug tools: \(error.localizedDescription)")
-        }
-    }
-}
 #endif
 
 // MARK: - WebKitManager
@@ -374,8 +373,8 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
     /// Timestamp of the last cookie change (for observation).
     private(set) var cookiesDidChange: Date = .distantPast
 
-  /// Flag to prevent cookie backups while restoring from Keychain.
-  private var isRestoringCookies = false
+    /// Flag to prevent cookie backups while restoring from Keychain.
+    private var isRestoringCookies = false
 
     /// Task for debouncing cookie change handling.
     private var cookieDebounceTask: Task<Void, Never>?
@@ -422,36 +421,36 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
     /// Restores auth cookies from Keychain to WebKit.
     /// Handles migration from legacy file-based storage on first run.
     private func restoreAuthCookiesFromBackup() async {
-    isRestoringCookies = true
-    defer { isRestoringCookies = false }
+        self.isRestoringCookies = true
+        defer { isRestoringCookies = false }
 
         // Wait a moment for WebKit to fully initialize
         try? await Task.sleep(for: .milliseconds(100))
 
-    // Migrate from legacy file-based storage if needed (one-time operation)
-    // Do migration work off the main thread.
-    _ = await Task.detached(priority: .utility)  {
-      LegacyCookieMigration.migrateIfNeeded()
-    }.value
+        // Migrate from legacy file-based storage if needed (one-time operation)
+        // Do migration work off the main thread.
+        _ = await Task.detached(priority: .utility) {
+            LegacyCookieMigration.migrateIfNeeded()
+        }.value
 
         let existingCookies = await dataStore.httpCookieStore.allCookies()
         self.logger.info("WebKit has \(existingCookies.count) cookies on startup")
 
-    // Load cookies from Keychain (Keychain I/O off the main thread; decode on MainActor)
-    let archiveData = await Task.detached(priority: .utility) {
-      KeychainCookieStorage.loadArchiveData()
-    }.value
+        // Load cookies from Keychain (Keychain I/O off the main thread; decode on MainActor)
+        let archiveData = await Task.detached(priority: .utility) {
+            KeychainCookieStorage.loadArchiveData()
+        }.value
 
-    guard let archiveData else {
+        guard let archiveData else {
             self.logger.info("No cookies found in Keychain (first run or signed out)")
             return
-    }
+        }
 
-    let keychainCookies = KeychainCookieStorage.decodeCookies(from: archiveData)
-    guard !keychainCookies.isEmpty else {
-      self.logger.info("No valid cookies found in Keychain")
-      return
-    }
+        let keychainCookies = KeychainCookieStorage.decodeCookies(from: archiveData)
+        guard !keychainCookies.isEmpty else {
+            self.logger.info("No valid cookies found in Keychain")
+            return
+        }
 
         self.logger.info("Restoring \(keychainCookies.count) auth cookies from Keychain")
 
@@ -490,10 +489,28 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
     }
 
     /// Gets cookies for a specific domain.
+    /// Uses proper domain matching: exact match or cookie domain with leading dot matches subdomains.
     func getCookies(for domain: String) async -> [HTTPCookie] {
         let allCookies = await getAllCookies()
+        let normalizedDomain = domain.lowercased()
         return allCookies.filter { cookie in
-            domain.hasSuffix(cookie.domain) || cookie.domain.hasSuffix(domain)
+            let cookieDomain = cookie.domain.lowercased()
+            // Exact match
+            if cookieDomain == normalizedDomain {
+                return true
+            }
+            // Cookie domain with leading dot matches the domain and all subdomains
+            // e.g., ".youtube.com" matches "music.youtube.com" and "youtube.com"
+            if cookieDomain.hasPrefix(".") {
+                let withoutDot = String(cookieDomain.dropFirst())
+                return normalizedDomain == withoutDot || normalizedDomain.hasSuffix("." + withoutDot)
+            }
+            // Request domain is a subdomain of cookie domain
+            // e.g., cookie for "youtube.com" should match "music.youtube.com"
+            if normalizedDomain.hasSuffix("." + cookieDomain) {
+                return true
+            }
+            return false
         }
     }
 
@@ -606,15 +623,15 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
         }
 
         self.logger.info("Force backup: \(authCookies.count) YouTube/Google cookies to Keychain")
-    guard let archive = KeychainCookieStorage.makeArchiveData(from: authCookies) else { return }
+        guard let archive = KeychainCookieStorage.makeArchiveData(from: authCookies) else { return }
 
-    // Perform Keychain/file I/O off the main thread.
-    Task.detached(priority: .utility) {
-      KeychainCookieStorage.saveArchiveData(archive.data, cookieCount: archive.cookieCount)
-      #if DEBUG
-        DebugCookieFileExporter.exportAuthCookiesArchiveData(archive.data)
-      #endif
-    }
+        // Perform Keychain/file I/O off the main thread.
+        Task.detached(priority: .utility) {
+            KeychainCookieStorage.saveArchiveData(archive.data, cookieCount: archive.cookieCount)
+            #if DEBUG
+                DebugCookieFileExporter.exportAuthCookiesArchiveData(archive.data)
+            #endif
+        }
     }
 }
 
@@ -625,7 +642,7 @@ extension WebKitManager: WKHTTPCookieStoreObserver {
         Task { @MainActor in
             self.cookiesDidChange = Date()
 
-      guard !self.isRestoringCookies else { return }
+            guard !self.isRestoringCookies else { return }
 
             // Debounce cookie backup to avoid excessive writes
             // WebKit fires this callback for each individual cookie change,
@@ -656,16 +673,16 @@ extension WebKitManager: WKHTTPCookieStoreObserver {
         let authCookies = cookies.filter { cookie in
             let domain = cookie.domain.lowercased()
             return domain.hasSuffix("youtube.com") || domain.hasSuffix("google.com")
-    }
+        }
 
-    guard let archive = KeychainCookieStorage.makeArchiveData(from: authCookies) else { return }
+        guard let archive = KeychainCookieStorage.makeArchiveData(from: authCookies) else { return }
 
-    // Perform Keychain/file I/O off the main thread.
-    Task.detached(priority: .utility) {
-      KeychainCookieStorage.saveArchiveData(archive.data, cookieCount: archive.cookieCount)
-      #if DEBUG
-        DebugCookieFileExporter.exportAuthCookiesArchiveData(archive.data)
-#endif
+        // Perform Keychain/file I/O off the main thread.
+        Task.detached(priority: .utility) {
+            KeychainCookieStorage.saveArchiveData(archive.data, cookieCount: archive.cookieCount)
+            #if DEBUG
+                DebugCookieFileExporter.exportAuthCookiesArchiveData(archive.data)
+            #endif
         }
     }
 }
