@@ -31,8 +31,9 @@ actor ImageCache {
         // Set up memory pressure monitoring
         Self.setupMemoryPressureMonitoring(cache: self)
 
-        // Evict disk cache if needed on startup
-        Task.detached(priority: .utility) {
+        // Evict disk cache if needed on startup.
+        // Perform file system I/O off the main actor.
+        Task(priority: .utility) {
             await self.evictDiskCacheIfNeeded()
         }
     }
@@ -225,8 +226,9 @@ actor ImageCache {
         let path = self.diskCachePath(for: url)
         try? data.write(to: path, options: .atomic)
 
-        // Evict old files if disk cache exceeds limit
-        Task.detached(priority: .utility) {
+        // Evict old files if disk cache exceeds limit.
+        // Perform file system I/O off the main actor.
+        Task(priority: .utility) {
             await self.evictDiskCacheIfNeeded()
         }
     }

@@ -427,17 +427,18 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
         // Wait a moment for WebKit to fully initialize
         try? await Task.sleep(for: .milliseconds(100))
 
-        // Migrate from legacy file-based storage if needed (one-time operation)
-        // Do migration work off the main thread.
-        _ = await Task.detached(priority: .utility) {
+        // Migrate from legacy file-based storage if needed (one-time operation).
+        // Perform file I/O off the main actor.
+        _ = await Task(priority: .utility) {
             LegacyCookieMigration.migrateIfNeeded()
         }.value
 
         let existingCookies = await dataStore.httpCookieStore.allCookies()
         self.logger.info("WebKit has \(existingCookies.count) cookies on startup")
 
-        // Load cookies from Keychain (Keychain I/O off the main thread; decode on MainActor)
-        let archiveData = await Task.detached(priority: .utility) {
+        // Load cookies from Keychain.
+        // Perform Keychain I/O off the main actor; decode on main actor.
+        let archiveData = await Task(priority: .utility) {
             KeychainCookieStorage.loadArchiveData()
         }.value
 
@@ -625,8 +626,9 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
         self.logger.info("Force backup: \(authCookies.count) YouTube/Google cookies to Keychain")
         guard let archive = KeychainCookieStorage.makeArchiveData(from: authCookies) else { return }
 
-        // Perform Keychain/file I/O off the main thread.
-        Task.detached(priority: .utility) {
+        // Perform Keychain/file I/O off the main actor.
+        // Fire-and-forget: failures are handled inside KeychainCookieStorage.
+        Task(priority: .utility) {
             KeychainCookieStorage.saveArchiveData(archive.data, cookieCount: archive.cookieCount)
             #if DEBUG
                 DebugCookieFileExporter.exportAuthCookiesArchiveData(archive.data)

@@ -82,7 +82,9 @@ final class FavoritesManager {
         let itemsSnapshot = self.items
         let targetURL = self.fileURL
 
-        Task.detached(priority: .utility) {
+        // Perform disk I/O off the main actor.
+        // Fire-and-forget: failures are logged but not propagated.
+        Task(priority: .utility) {
             do {
                 // Ensure directory exists
                 let directory = targetURL.deletingLastPathComponent()
