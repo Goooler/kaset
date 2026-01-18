@@ -49,10 +49,9 @@ For detailed information, see the `docs/` folder:
 
 ## Before You Start
 
-1. **Read [PLAN.md](PLAN.md)** — Contains the phased implementation plan
-2. **Understand the playback architecture** — See [docs/playback.md](docs/playback.md)
-3. **Check ADRs for past decisions** — See [docs/adr/](docs/adr/) before proposing architectural changes
-4. **Consult API documentation before implementing API features** — See [docs/api-discovery.md](docs/api-discovery.md) for endpoint reference
+1. **Understand the playback architecture** — See [docs/playback.md](docs/playback.md)
+2. **Check ADRs for past decisions** — See [docs/adr/](docs/adr/) before proposing architectural changes
+3. **Consult API documentation before implementing API features** — See [docs/api-discovery.md](docs/api-discovery.md) for endpoint reference
 
 ### API Discovery Workflow
 

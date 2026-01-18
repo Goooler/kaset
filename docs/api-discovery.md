@@ -155,19 +155,19 @@ Browse endpoints use `POST /browse` with a `browseId` parameter.
 |-----------|------|------|-------------|--------|
 | `FEmusic_home` | Home | 🌐 | Personalized recommendations, mixes, quick picks | `HomeResponseParser` |
 | `FEmusic_explore` | Explore | 🌐 | New releases, charts, moods shortcuts | `HomeResponseParser` |
-| `FEmusic_charts` | Charts | 🌐 | Top songs, albums by country/genre | `ChartsParser` |
-| `FEmusic_moods_and_genres` | Moods & Genres | 🌐 | Browse by mood/genre grids | `MoodsAndGenresParser` |
-| `FEmusic_new_releases` | New Releases | 🌐 | Recent albums, singles, videos | `NewReleasesParser` |
-| `FEmusic_library_landing` | Library Landing | 🔐 | All library content (playlists, podcasts, artists) | `LibraryParser` |
+| `FEmusic_charts` | Charts | 🌐 | Top songs, albums by country/genre | `HomeResponseParser` |
+| `FEmusic_moods_and_genres` | Moods & Genres | 🌐 | Browse by mood/genre grids | `HomeResponseParser` |
+| `FEmusic_new_releases` | New Releases | 🌐 | Recent albums, singles, videos | `HomeResponseParser` |
+| `FEmusic_library_landing` | Library Landing | 🔐 | All library content (playlists, podcasts, artists) | `PlaylistParser.parseLibraryContent` |
 | `FEmusic_liked_playlists` | Library Playlists | 🔐 | User's saved/created playlists | `PlaylistParser` |
 | `VLLM` | Liked Songs | 🔐 | All songs user has liked (with pagination) | `PlaylistParser` |
 | `VL{playlistId}` | Playlist Detail | 🌐 | Playlist tracks and metadata | `PlaylistParser` |
 | `UC{channelId}` | Artist Detail | 🌐 | Artist page with songs, albums | `ArtistParser` |
-| `MPLYt{id}` | Lyrics | 🌐 | Song lyrics text | Custom parser |
+| `MPLYt{id}` | Lyrics | 🌐 | Song lyrics text | `LyricsParser` |
 | `FEmusic_podcasts` | Podcasts Discovery | 🌐 | Podcast shows and episodes carousel | `PodcastParser` |
 | `MPSPP{id}` | Podcast Show Detail | 🌐 | Podcast episodes with playback progress | `PodcastParser` |
 
-> **Note**: `VLLM` is a special case of `VL{playlistId}` where `LM` is the Liked Music playlist ID. Do NOT use `FEmusic_liked_videos` — it returns only ~13 songs without pagination.
+> **Note**: Charts, Moods & Genres, and New Releases all use `HomeResponseParser` since they share the same section-based response structure. `VLLM` is a special case of `VL{playlistId}` where `LM` is the Liked Music playlist ID. Do NOT use `FEmusic_liked_videos` — it returns only ~13 songs without pagination.
 
 #### Home (`FEmusic_home`)
 

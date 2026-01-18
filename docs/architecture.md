@@ -244,6 +244,118 @@ Manages user-curated Favorites section on Home view:
 - `Views/macOS/SharedViews/FavoritesSection.swift` — Horizontal scrolling UI
 - `Views/macOS/SharedViews/FavoritesContextMenu.swift` — Shared context menu items
 
+### NotificationService
+
+**File**: `Core/Services/Notification/NotificationService.swift`
+
+Posts local notifications when the current track changes:
+
+- Observes `PlayerService.currentTrack` for changes
+- Posts silent alerts with track title and artist
+- Respects user preference via `SettingsManager.showNowPlayingNotifications`
+- Requests notification authorization on init
+
+**Usage**: Instantiated in `MainWindow` and kept alive for app lifetime.
+
+### NetworkMonitor
+
+**File**: `Core/Services/NetworkMonitor.swift`
+
+Monitors network connectivity using `NWPathMonitor`:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `isConnected` | `Bool` | Whether network is available |
+| `isExpensive` | `Bool` | Cellular or hotspot connection |
+| `isConstrained` | `Bool` | Low Data Mode enabled |
+| `interfaceType` | `InterfaceType` | WiFi, cellular, wired, etc. |
+| `statusDescription` | `String` | Human-readable status |
+
+**Note**: Uses `DispatchQueue` for `NWPathMonitor` callbacks (no async/await API from Apple).
+
+### SettingsManager
+
+**File**: `Core/Services/SettingsManager.swift`
+
+Manages user preferences persisted via `UserDefaults`:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `showNowPlayingNotifications` | `Bool` | `true` | Track change notifications |
+| `defaultLaunchPage` | `LaunchPage` | `.home` | Initial page on app launch |
+| `hapticFeedbackEnabled` | `Bool` | `true` | Force Touch feedback |
+| `rememberPlaybackSettings` | `Bool` | `true` | Persist shuffle/repeat state |
+
+**LaunchPage Options**: Home, Explore, Charts, Moods & Genres, New Releases, Liked Music, Playlists, Last Used
+
+### ShareService
+
+**File**: `Core/Services/ShareService.swift`
+
+Provides share sheet functionality via the `Shareable` protocol:
+
+```swift
+protocol Shareable {
+    var shareTitle: String { get }
+    var shareSubtitle: String? { get }
+    var shareURL: URL? { get }
+}
+```
+
+**Conforming Types**: `Song`, `Playlist`, `Album`, `Artist`
+
+**Share Text Format**: "Title by Artist" or just "Title" for artists.
+
+### SongLikeStatusManager
+
+**File**: `Core/Services/SongLikeStatusManager.swift`
+
+Caches and syncs like/dislike status for songs:
+
+| Method | Description |
+|--------|-------------|
+| `status(for:)` | Get cached status for video ID or Song |
+| `isLiked(_:)` | Check if song is liked |
+| `setStatus(_:for:)` | Update cache (optimistic update) |
+| `rate(_:status:)` | Sync rating with YouTube Music API |
+
+**Optimistic Updates**: Updates cache immediately, rolls back on API failure.
+
+### URLHandler
+
+**File**: `Core/Services/URLHandler.swift`
+
+Parses YouTube Music and custom `kaset://` URLs:
+
+| URL Pattern | ParsedContent |
+|-------------|---------------|
+| `music.youtube.com/watch?v=xxx` | `.song(videoId:)` |
+| `music.youtube.com/playlist?list=xxx` | `.playlist(id:)` |
+| `music.youtube.com/browse/MPRExxx` | `.album(id:)` |
+| `music.youtube.com/channel/UCxxx` | `.artist(id:)` |
+| `kaset://play?v=xxx` | `.song(videoId:)` |
+| `kaset://playlist?list=xxx` | `.playlist(id:)` |
+| `kaset://album?id=xxx` | `.album(id:)` |
+| `kaset://artist?id=xxx` | `.artist(id:)` |
+
+**Usage**: Called from `KasetApp.onOpenURL` to handle deep links.
+
+### UpdaterService
+
+**File**: `Core/Services/UpdaterService.swift`
+
+Manages application updates via Sparkle framework:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `automaticChecksEnabled` | `Bool` | Auto-check on launch |
+| `canCheckForUpdates` | `Bool` | Whether check is allowed now |
+
+**Key Methods**:
+- `checkForUpdates()` — Manually trigger update check
+
+See [ADR-0007: Sparkle Auto-Updates](adr/0007-sparkle-auto-updates.md) for design details.
+
 ### AppDelegate
 
 **File**: `App/AppDelegate.swift`
@@ -418,9 +530,96 @@ DiagnosticsLogger.player.info("Loading video: \(videoId)")
 DiagnosticsLogger.auth.error("Cookie extraction failed")
 ```
 
-**Categories**: `.player`, `.auth`, `.api`, `.webKit`, `.haptic`
+**Categories**: `.player`, `.auth`, `.api`, `.webKit`, `.haptic`, `.notification`
 
 **Levels**: `.debug`, `.info`, `.warning`, `.error`
+
+## Utilities
+
+The `Core/Utilities/` folder contains shared helper components.
+
+### ImageCache
+
+**File**: `Core/Utilities/ImageCache.swift`
+
+Thread-safe actor with memory and disk caching:
+
+| Feature | Description |
+|---------|-------------|
+| Memory cache | 200 items, 50MB limit via `NSCache` |
+| Disk cache | 200MB limit with LRU eviction |
+| Downsampling | Images resized to display size before caching |
+| Prefetch | Structured cancellation for SwiftUI `.task` lifecycle |
+
+**Key Methods**:
+- `image(for:targetSize:)` — Fetch and cache image
+- `prefetch(urls:targetSize:maxConcurrent:)` — Batch prefetch for lists
+
+### ColorExtractor
+
+**File**: `Core/Utilities/ColorExtractor.swift`
+
+Extracts dominant colors from album art for dynamic theming:
+
+- Uses `CIAreaAverage` filter for color extraction
+- Caches extracted colors to avoid repeated processing
+- Used by `AccentBackground` for gradient overlays
+
+### AnimationConfiguration
+
+**File**: `Core/Utilities/AnimationConfiguration.swift`
+
+Standardized animation timing for consistent motion design:
+
+| Animation | Duration | Curve | Used For |
+|-----------|----------|-------|----------|
+| `.standard` | 0.25s | `.easeInOut` | General transitions |
+| `.quick` | 0.15s | `.easeOut` | Button feedback |
+| `.slow` | 0.4s | `.easeInOut` | Panel reveals |
+
+### AccessibilityIdentifiers
+
+**File**: `Core/Utilities/AccessibilityIdentifiers.swift`
+
+Centralized UI test identifiers organized by feature:
+
+```swift
+enum AccessibilityID {
+    enum Player { static let playButton = "player.playButton" }
+    enum Queue { static let container = "queue.container" }
+    // ...
+}
+```
+
+**Benefits**: Prevents string duplication, enables IDE autocomplete in tests.
+
+### IntelligenceModifier
+
+**File**: `Core/Utilities/IntelligenceModifier.swift`
+
+SwiftUI modifier to hide AI features when unavailable:
+
+```swift
+.requiresIntelligence()  // Hides view if Apple Intelligence unavailable
+```
+
+Checks `FoundationModelsService.shared.isAvailable` and applies opacity/disabled state.
+
+### RetryPolicy
+
+**File**: `Core/Utilities/RetryPolicy.swift`
+
+Exponential backoff for network retries:
+
+```swift
+try await RetryPolicy.execute(
+    maxAttempts: 3,
+    initialDelay: .seconds(1),
+    shouldRetry: { ($0 as? YTMusicError)?.isRetryable ?? false }
+) {
+    try await client.fetchData()
+}
+```
 
 ## Performance Guidelines
 
@@ -625,6 +824,41 @@ User Input (natural language)
 | `AIErrorHandler` | `Core/Services/AI/` | User-friendly error messages |
 | `RequiresIntelligenceModifier` | `Core/Utilities/` | Hide AI features when unavailable |
 
+### AI Tools
+
+Tools ground AI responses in real data from the YouTube Music catalog, preventing hallucination.
+
+**MusicSearchTool** (`Core/Services/AI/Tools/MusicSearchTool.swift`)
+
+Searches the YouTube Music catalog for songs, artists, and albums:
+
+```swift
+@Generable
+struct MusicSearchResult {
+    let songs: [SongResult]
+    let artists: [ArtistResult]
+    let albums: [AlbumResult]
+}
+```
+
+**QueueTool** (`Core/Services/AI/Tools/QueueTool.swift`)
+
+Provides access to the current playback queue for AI-driven queue management:
+
+- Returns current queue contents
+- Used by `QueueIntent` for natural language queue manipulation
+- Enables commands like "remove duplicates" or "play upbeat songs next"
+
+### @Generable Models
+
+Type-safe structured outputs for AI responses:
+
+| Model | File | Purpose |
+|-------|------|---------|
+| `MusicIntent` | `Core/Models/AI/MusicIntent.swift` | Parsed user commands (play, pause, search, etc.) |
+| `LyricsSummary` | `Core/Models/AI/LyricsSummary.swift` | Lyrics explanation with themes and mood |
+| `PlaylistChanges` | `Core/Models/AI/PlaylistChanges.swift` | Queue refinement operations |
+
 ### AI Features
 
 | Feature | Trigger | Model Used |
@@ -641,6 +875,85 @@ User Input (natural language)
 3. **Tools**: Always use tools to ground responses in real data—prevents hallucination.
 4. **Graceful Degradation**: Use `.requiresIntelligence()` modifier to hide unavailable features.
 5. **Error Handling**: Use `AIErrorHandler` for user-friendly messages.
+
+## UI Components
+
+This section documents key SwiftUI views and their integration patterns.
+
+### QueueView
+
+**File**: `Views/macOS/QueueView.swift`
+
+Right sidebar panel displaying the playback queue:
+
+- Shows "Up Next" header with shuffle/clear actions
+- Displays queue items with drag-to-reorder support
+- AI-powered "Refine" button for natural language queue editing
+- Uses `.glassEffect(.regular.interactive())` with `.glassEffectTransition(.materialize)`
+
+**Integration**: Toggled via `PlayerService.showQueue`, placed outside `NavigationSplitView` in `MainWindow`.
+
+### LyricsView
+
+**File**: `Views/macOS/LyricsView.swift`
+
+Right sidebar panel displaying song lyrics:
+
+- Fetches lyrics via `YTMusicClient.getLyrics(videoId:)`
+- "Explain" button triggers AI-powered `LyricsSummary` generation
+- Scrollable text with synchronized highlighting (when available)
+- Width: 280px, animated show/hide
+
+**Integration**: Toggled via `PlayerService.showLyrics`, persists across all navigation states.
+
+### CommandBarView
+
+**File**: `Views/macOS/CommandBarView.swift`
+
+Spotlight-style command palette triggered by ⌘K:
+
+- Natural language input parsed via `MusicIntent`
+- Shows suggestions and action previews
+- Supports commands: play, pause, skip, search, queue management
+- Floating overlay with glass effect
+
+**Trigger**: `@Environment(\.showCommandBar)` environment key.
+
+### ToastView
+
+**File**: `Views/macOS/ToastView.swift`
+
+Temporary notification overlay for user feedback:
+
+| Toast Type | Duration | Purpose |
+|------------|----------|---------|
+| Success | 2s | Action completed (e.g., "Added to library") |
+| Error | 3s | Action failed with message |
+| Info | 2s | Informational feedback |
+
+**Usage**: Managed via environment or direct state binding.
+
+### SharedViews
+
+**Directory**: `Views/macOS/SharedViews/`
+
+Reusable components used across the app:
+
+| Component | Purpose |
+|-----------|---------|
+| `ErrorView` | Standardized error display with retry button |
+| `LoadingView` | Skeleton loading states |
+| `SkeletonView` | Shimmer placeholder for loading content |
+| `EqualizerView` | Animated bars for "now playing" indicator |
+| `HomeSectionItemCard` | Card component for carousel items |
+| `InteractiveCardStyle` | Hover/press effects for cards |
+| `NavigationDestinationsModifier` | Centralized navigation destination handling |
+| `ShareContextMenu` | Context menu for sharing content |
+| `StartRadioContextMenu` | Context menu for starting radio/mix |
+| `FavoritesSection` | Horizontal scrolling favorites row |
+| `FavoritesContextMenu` | Context menu for favorites management |
+| `SongActionsHelper` | Common song action handlers |
+| `AnimationModifiers` | Reusable animation view modifiers |
 
 ### PlayerBar
 
