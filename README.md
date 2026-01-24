@@ -22,6 +22,7 @@ A native macOS YouTube Music client built with Swift and SwiftUI.
 - 📃 **Queue Management** — View, reorder, shuffle, and clear your playback queue
 - 📣 **Share** — Share songs, playlists, albums, and artists via the native macOS share sheet
 - 🔗 **URL Scheme** — Open songs directly with `kaset://play?v=VIDEO_ID`
+- 🤖 **[AppleScript Support](docs/applescript.md)** — Automate playback with scripts, Raycast, Alfred, and Shortcuts
 
 ## Requirements
 
