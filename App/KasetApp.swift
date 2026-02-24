@@ -118,6 +118,8 @@ struct KasetApp: App {
                         // Wire up PlayerService to AppDelegate for dock menu and AppleScript actions
                         // This runs synchronously so AppleScript commands can access playerService immediately
                         self.appDelegate.playerService = self.playerService
+                        // Reference notificationService to keep SwiftUI from deallocating it
+                        _ = self.notificationService
                     }
                     .task {
                         // Check if user is already logged in from previous session
